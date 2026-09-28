@@ -6,7 +6,7 @@
 
 ## Разделы Wiki
 
-- [Главная](Home.md)
+- [Главная](consultflow-wiki/Home.md)
 - [01. Определение продукта](consultflow-wiki/01-product.md)
 - [02. Состояние продукта](consultflow-wiki/02-state.md)
 - [03. Развитие продукта](consultflow-wiki/03-development.md)
@@ -14,7 +14,7 @@
 - [05. Таблица ролей](consultflow-wiki/05-roles.md)
 - [06. Техническая часть](consultflow-wiki/06-technical.md)
 - [07. Тестирование](consultflow-wiki/07-testing.md)
-- [08. Безопасность](consultflow-wiki/08-security..md)
+- [08. Безопасность](consultflow-wiki/08-security.md)
 
 ## О продукте
 
