@@ -25,7 +25,7 @@
 
 ## UI
 
-- [Макеты Figma — ConsultFlow v1.2](https://figma.com/...)
+- [Макеты Figma — ConsultFlow v1.2](https://figma.com/)
 - [Гайдлайн интерфейса](artifacts/ui-guideline.md)
 
 ## Прочие артефакты
