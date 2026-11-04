@@ -63,3 +63,7 @@ def main() -> None:
         asyncio.run(run())
     except KeyboardInterrupt:
         logger.info("Бот остановлен пользователем")
+
+
+if __name__ == "__main__":
+    main()
