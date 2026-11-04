@@ -33,6 +33,7 @@ import {
 } from '@/api/client';
 import { useClients, useManagers, useOrders } from '@/api/queries';
 import type { Order } from '@/api/types';
+import { useAuth } from '@/auth/AuthContext';
 import { PageHeader } from '@/components/PageHeader';
 import { PracticePill, StatusPill } from '@/components/StatusPill';
 import {
@@ -53,7 +54,9 @@ interface CreateFormValues {
 
 export function OrdersPage() {
   const { message } = App.useApp();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const canManage = user?.role === 'admin' || user?.role === 'manager';
   const [searchParams, setSearchParams] = useSearchParams();
   const orderParam = Number(searchParams.get('order')) || null;
 
@@ -244,13 +247,15 @@ export function OrdersPage() {
             <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExport}>
               Экспорт CSV
             </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setCreateOpen(true)}
-            >
-              Новый заказ
-            </Button>
+            {canManage && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setCreateOpen(true)}
+              >
+                Новый заказ
+              </Button>
+            )}
           </>
         }
       />
