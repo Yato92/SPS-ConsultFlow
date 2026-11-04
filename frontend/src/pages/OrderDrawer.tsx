@@ -73,6 +73,9 @@ export function OrderDrawer({
 
   const canManage = user?.role === 'admin' || user?.role === 'manager';
   const next = order ? NEXT_STATUS[order.status] : undefined;
+  const canCancel = order
+    ? !['done', 'closed', 'cancelled'].includes(order.status)
+    : false;
 
   const openStatus = () => {
     statusForm.setFieldsValue({ status: next?.value, comment: '' });
@@ -482,7 +485,8 @@ export function OrderDrawer({
                 <Select
                   options={STATUS_OPTIONS.filter(
                     (option) =>
-                      option.value === next?.value || option.value === 'cancelled',
+                      option.value === next?.value ||
+                      (canCancel && option.value === 'cancelled'),
                   )}
                 />
               </Form.Item>
