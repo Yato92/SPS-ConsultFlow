@@ -164,9 +164,9 @@ def _pricing_block(pricing: dict[str, Any] | None) -> str:
     return "\n".join(lines) or "Тарифы временно недоступны."
 
 
-def _orders_block(orders: list[dict[str, Any]] | None) -> str:
+def _orders_block(orders: list[dict[str, Any]] | None, is_manager: bool = False) -> str:
     if not orders:
-        return "У клиента пока нет заявок."
+        return "Очередь не загружена." if is_manager else "У клиента пока нет заявок."
     lines: list[str] = []
     for order in orders[:5]:
         status = order.get("status_label") or order.get("status") or "—"
@@ -193,6 +193,8 @@ def build_system_prompt(
         else "Ты — ИИ-консультант ConsultFlow для клиентов: помогаешь выбрать "
         "консалтинговую услугу, понять этапы работы и сориентироваться по стоимости."
     )
+    subject = "Сотрудник" if is_manager else "Клиент"
+    orders_label = "Очередь заявок" if is_manager else "Его заявки"
     return f"""{role}
 
 О компании:
@@ -204,9 +206,9 @@ def build_system_prompt(
 - В учебном прототипе оплата тестовая: деньги не списываются.
 
 Контекст:
-- Клиент: {client_name or "не представился"}.
-- Его заявки:
-{_orders_block(orders)}
+- {subject}: {client_name or "не представился"}.
+- {orders_label}:
+{_orders_block(orders, is_manager)}
 - Актуальные тарифы ConsultFlow:
 {_pricing_block(pricing)}
 
@@ -266,7 +268,12 @@ async def _context(
         pricing = await api.pricing()
     except APIError:
         logger.warning("AI context: pricing failed")
-    if not is_manager:
+    if is_manager:
+        try:
+            orders = (await api.queue(user.id))[:5]
+        except APIError:
+            logger.warning("AI context: manager queue failed")
+    else:
         try:
             orders = await api.my_orders(user.id, limit=5)
         except APIError:
