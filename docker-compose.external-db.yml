@@ -1,0 +1,13 @@
+# Override для уже существующей базы reg.ru / второго сервера.
+# Использование:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.external-db.yml \
+#     --profile vk up -d --build
+#
+# В .env обязательно задайте DATABASE_URL.
+# Локальный контейнер db всё равно поднимется, но backend будет использовать
+# внешнюю базу. Для учебного проекта это нормально; позже db можно убрать.
+
+services:
+  backend:
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}

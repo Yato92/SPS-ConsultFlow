@@ -13,7 +13,7 @@
 | VK-бот | `bot/vk_bot/` | альтернативный канал: Long Poll сообщества, заявки, ИИ, AI-разбор |
 | Backend API | `backend/` | бизнес-логика, права, расчёты, документы, аудит, аналитика |
 | SPA-дашборд | `frontend/` | визуализация показателей, работа с заказами и клиентами |
-| База данных | SQLite / PostgreSQL | единое хранилище заказов, клиентов, событий, документов |
+| База данных | SQLite / PostgreSQL / MySQL 5.7 | единое хранилище заказов, клиентов, событий, документов |
 | Nginx | `frontend/nginx.conf` | раздача статики и проксирование `/api` |
 | Docker Compose | `docker-compose.yml` | локальное развёртывание всего контура |
 
@@ -23,7 +23,7 @@
 
 ```
 Telegram ──▶ aiogram ──┐
-                       ├──▶ FastAPI /api ──▶ SQLAlchemy ──▶ SQLite/PostgreSQL
+                       ├──▶ FastAPI /api ──▶ SQLAlchemy ──▶ SQLite/PostgreSQL/MySQL
 Браузер ──▶ React SPA ─┘          │
                                   ├── services/orders.py     (жизненный цикл)
                                   ├── services/ai_intake.py  (BPMN-ветка ИИ)
@@ -186,7 +186,9 @@ new → clarification → qualified → proposal ⇄ revision → approved → c
 
 Для production на VPS есть `docker-compose.prod.yml`: Caddy завершает HTTPS,
 наружу открыты только 80/443, PostgreSQL и backend остаются во внутренней сети Docker.
-Инструкция — [deploy-regru.md](deploy-regru.md).
+Вместо локального PostgreSQL можно подключить внешнюю MySQL 5.7 или PostgreSQL
+reg.ru: все каналы по-прежнему пишут через backend в одну БД. Инструкция —
+[database-regru.md](database-regru.md), развёртывание — [deploy-regru.md](deploy-regru.md).
 
 ## 10. Ограничения и развитие
 

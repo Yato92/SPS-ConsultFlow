@@ -2,8 +2,9 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.api.routes import (
     analytics,
@@ -68,6 +69,20 @@ app.include_router(prototype.router, prefix=api)
 @app.get("/health", tags=["system"])
 def health() -> dict:
     return {"status": "ok", "service": "ConsultFlow API", "version": "1.0.0"}
+
+
+@app.get("/health/db", tags=["system"])
+def health_db() -> dict:
+    """Проверка подключения к внешней БД (reg.ru, PostgreSQL, MySQL)."""
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503,
+            detail="База данных недоступна. Проверьте DATABASE_URL и сетевой доступ.",
+        ) from exc
+    return {"status": "ok", "dialect": engine.dialect.name}
 
 
 @app.get("/", tags=["system"])

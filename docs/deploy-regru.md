@@ -127,6 +127,39 @@ openssl rand -hex 32
 `SEED_DEMO=true` создаёт демо-данные только в пустой базе. Если база уже создана,
 смена `ADMIN_PASSWORD` не изменит существующий пароль.
 
+### Если база данных уже есть на reg.ru
+
+Можно не использовать контейнер `db`, а подключить готовую MySQL 5.7 или
+PostgreSQL. Добавьте в `.env`:
+
+```env
+# MySQL 5.7 на виртуальном хостинге reg.ru
+DATABASE_URL=mysql+pymysql://u1234567_user:ПАРОЛЬ@serverX.hosting.reg.ru:3306/u1234567_consultflow?charset=utf8mb4
+
+# или PostgreSQL на втором сервере
+# DATABASE_URL=postgresql+psycopg://consultflow:ПАРОЛЬ@IP_БД:5432/consultflow
+```
+
+Backend начнёт писать заявки, клиентов, документы и результаты ИИ в эту базу.
+Запускайте stack с override-файлом:
+
+```bash
+docker compose -f docker-compose.prod.yml \
+  -f docker-compose.external-db.yml --profile vk up -d --build
+```
+
+Контейнер `db` в compose всё равно поднимется, но использоваться не будет; для
+учебного проекта это допустимо. Подробно про удалённый доступ, MySQL 5.7/8 и
+URL-кодирование пароля — в [database-regru.md](database-regru.md).
+
+Проверка после запуска:
+
+```bash
+curl https://ваш-домен/health/db
+```
+
+Должно вернуться `{"status":"ok","dialect":"mysql"}` или `"postgresql"`.
+
 ## 6. Запуск
 
 ```bash

@@ -16,6 +16,12 @@ def _create(client, email: str = "proto-test@example.ru") -> dict:
     return response.json()
 
 
+def test_database_health(client):
+    response = client.get("/health/db")
+    assert response.status_code == 200, response.text
+    assert response.json()["dialect"] == "sqlite"
+
+
 def test_bootstrap_returns_demo_orders_and_dictionaries(client):
     response = client.get("/api/prototype/bootstrap")
     assert response.status_code == 200, response.text

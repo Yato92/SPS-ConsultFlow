@@ -104,7 +104,7 @@ ConsultFlow собирает весь цикл в один процесс:
 | Слой | Технологии |
 | --- | --- |
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2.1, Pydantic v2, PyJWT, pwdlib (Argon2), Uvicorn |
-| База данных | SQLite (разработка), PostgreSQL 15 (docker-compose) |
+| База данных | SQLite (разработка), PostgreSQL 15 (Docker), внешняя MySQL 5.7/PostgreSQL |
 | Telegram-бот | aiogram 3.31, httpx, pydantic-settings |
 | Frontend | React 18, TypeScript 5.7, Vite 6, Ant Design 5, React Query 5, Axios, Recharts, dayjs |
 | Инфраструктура | Docker, docker-compose, Nginx |
@@ -148,7 +148,7 @@ ConsultFlow-Lab/
 │   │   ├── schemas.py     # Pydantic-схемы
 │   │   ├── seed.py        # демо-данные (76 заказов, 14 клиентов, 6 сотрудников)
 │   │   └── main.py        # точка входа, CORS, lifespan
-│   ├── tests/             # pytest: 39 тестов
+│   ├── tests/             # pytest: 43 теста
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── bot/                   # Telegram-бот
@@ -361,6 +361,17 @@ docker compose -f docker-compose.prod.yml --profile vk up -d --build
 
 Подробная инструкция: [docs/deploy-regru.md](docs/deploy-regru.md).
 
+Если база уже создана на reg.ru (MySQL 5.7 или PostgreSQL), добавьте
+`DATABASE_URL` в `.env` и запустите stack с внешней БД:
+
+```bash
+docker compose -f docker-compose.prod.yml \
+  -f docker-compose.external-db.yml --profile vk up -d --build
+```
+
+Проверка: `curl https://ваш-домен/health/db`. Подробности:
+[docs/database-regru.md](docs/database-regru.md).
+
 ## Демо-доступ
 
 | Роль | E-mail | Пароль |
@@ -451,7 +462,7 @@ cd backend
 ..\.venv-backend\Scripts\python.exe -m pytest
 ```
 
-- 39 тестов: авторизация, права доступа, статусы, документы, аналитика, бот, расчёты и сценарии прототипа;
+- 43 теста: авторизация, права доступа, статусы, документы, аналитика, бот, расчёты, ИИ-разбор и сценарии прототипа;
 - отдельная тестовая БД, детерминированные фикстуры;
 - проверка типов и сборки фронтенда: `cd frontend && npm run build`;
 - браузерные сценарии прототипа проверены в headless Edge.
@@ -467,6 +478,7 @@ cd backend
 - [docs/ai.md](docs/ai.md) — Polza.ai, ИИ-консультант и AI-разбор заявки (BPMN);
 - [docs/vk.md](docs/vk.md) — VK-бот: Long Poll, настройка сообщества и ограничения;
 - [docs/deploy-regru.md](docs/deploy-regru.md) — production-развёртывание на VPS reg.ru;
+- [docs/database-regru.md](docs/database-regru.md) — подключение внешней MySQL/PostgreSQL reg.ru;
 - [frontend/public/prototype/README.md](frontend/public/prototype/README.md) — как открыть интерактивный макет и пройти оба сценария;
 - [consultflow-wiki/](consultflow-wiki/) — продуктовые артефакты РГР (роли, состояние, развитие).
 

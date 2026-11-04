@@ -92,10 +92,11 @@ npm run build
 | `test_estimate_minimum_hours` | минимум 1 час при нулевом вводе |
 | `test_sla_defaults` | SLA по направлениям и значение по умолчанию |
 
-### 3.6 Прототип (`tests/test_prototype.py`, 5 тестов)
+### 3.6 Прототип (`tests/test_prototype.py`, 6 тестов)
 
 | Тест | Проверка |
 | --- | --- |
+| `test_database_health` | `/health/db` подтверждает подключение к БД |
 | `test_bootstrap_returns_demo_orders_and_dictionaries` | демо-заявки №101–104, справочники и текущая заявка |
 | `test_full_prototype_lifecycle` | уточнение → КП → подпись → тестовая оплата → договор → работа → акт |
 | `test_remarks_create_revision_and_second_proposal` | замечания, доработка и КП версии 2 |
@@ -110,14 +111,14 @@ npm run build
 | `test_ai_intake_finds_duplicate_for_same_client` | fuzzy-поиск дубликата по заявкам того же клиента |
 | `test_create_order_with_ai_kp_document` | сохранение листа КП как `documents.doc_type = "proposal"` |
 
-**Итого: 42 автоматических теста, все проходят.**
+**Итого: 43 автоматических теста, все проходят.**
 
 ## 4. Результаты
 
 ```
 $ cd backend && python -m pytest
-..........................................                                 [100%]
-42 passed
+...........................................                              [100%]
+43 passed
 ```
 
 Проверка фронтенда:
