@@ -3,6 +3,7 @@
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from consultflow_bot.config import get_settings
 from consultflow_bot.utils import money
 
 
@@ -10,6 +11,7 @@ def client_menu() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.button(text="📝 Оставить заявку", callback_data="order:new")
     kb.button(text="📋 Мои заявки", callback_data="my:list")
+    kb.button(text="🖥 Открыть кабинет", url=get_settings().prototype_url)
     kb.button(text="💰 Прайс-лист", callback_data="menu:pricing")
     kb.button(text="❓ Как это работает", callback_data="menu:help")
     kb.adjust(1)
@@ -21,6 +23,7 @@ def manager_menu() -> InlineKeyboardMarkup:
     kb.button(text="📥 Очередь заявок", callback_data="mgr:queue")
     kb.button(text="📊 Статистика", callback_data="mgr:stats")
     kb.button(text="🖥 Открыть дашборд", callback_data="mgr:link")
+    kb.button(text="🧪 Открыть прототип", url=get_settings().prototype_url)
     kb.button(text="💰 Прайс-лист", callback_data="menu:pricing")
     kb.button(text="❓ Помощь", callback_data="menu:help")
     kb.adjust(1)
@@ -115,8 +118,10 @@ def back_to_orders() -> InlineKeyboardMarkup:
 
 NEXT_ACTIONS = {
     "new": ("qualified", "✅ Квалифицировать"),
+    "clarification": ("proposal", "📄 Отправить КП"),
     "qualified": ("proposal", "📄 Отправить КП"),
     "proposal": ("approved", "👍 КП согласовано"),
+    "revision": ("proposal", "📄 Отправить обновлённое КП"),
     "approved": ("contract", "🖊 Договор подписан"),
     "contract": ("in_progress", "⚙️ В работу"),
     "in_progress": ("done", "🏁 Работы выполнены"),

@@ -210,6 +210,7 @@ def change_status(
     actor_id: int | None = None,
     comment: str | None = None,
     force: bool = False,
+    create_documents: bool = True,
 ) -> Order:
     new_status = str(new_status)
     if order.status == new_status:
@@ -249,7 +250,7 @@ def change_status(
     )
 
     doc_type = document_for_status(order, new_status)
-    if doc_type:
+    if doc_type and create_documents:
         create_document_record(
             db, order, doc_type, actor_type=actor_type, actor_id=actor_id, commit=False
         )

@@ -18,8 +18,10 @@ class BotRole(str, Enum):
 
 class OrderStatus(str, Enum):
     NEW = "new"
+    CLARIFICATION = "clarification"
     QUALIFIED = "qualified"
     PROPOSAL = "proposal"
+    REVISION = "revision"
     APPROVED = "approved"
     CONTRACT = "contract"
     IN_PROGRESS = "in_progress"
@@ -58,8 +60,10 @@ USER_ROLE_LABELS: dict[str, str] = {
 
 STATUS_LABELS: dict[str, str] = {
     OrderStatus.NEW.value: "Новая заявка",
+    OrderStatus.CLARIFICATION.value: "На уточнении",
     OrderStatus.QUALIFIED.value: "Квалифицирована",
     OrderStatus.PROPOSAL.value: "КП отправлено",
+    OrderStatus.REVISION.value: "На доработке",
     OrderStatus.APPROVED.value: "КП согласовано",
     OrderStatus.CONTRACT.value: "Договор подписан",
     OrderStatus.IN_PROGRESS.value: "В работе",
@@ -70,8 +74,10 @@ STATUS_LABELS: dict[str, str] = {
 
 STATUS_COLORS: dict[str, str] = {
     OrderStatus.NEW.value: "blue",
+    OrderStatus.CLARIFICATION.value: "orange",
     OrderStatus.QUALIFIED.value: "geekblue",
     OrderStatus.PROPOSAL.value: "gold",
+    OrderStatus.REVISION.value: "volcano",
     OrderStatus.APPROVED.value: "lime",
     OrderStatus.CONTRACT.value: "cyan",
     OrderStatus.IN_PROGRESS.value: "purple",
@@ -97,15 +103,27 @@ DOCUMENT_LABELS: dict[str, str] = {
 # Разрешённые переходы статусов (жизненный цикл заказа).
 STATUS_TRANSITIONS: dict[str, set[str]] = {
     OrderStatus.NEW.value: {
+        OrderStatus.CLARIFICATION.value,
         OrderStatus.QUALIFIED.value,
         OrderStatus.CANCELLED.value,
     },
+    OrderStatus.CLARIFICATION.value: {
+        OrderStatus.QUALIFIED.value,
+        OrderStatus.PROPOSAL.value,
+        OrderStatus.CANCELLED.value,
+    },
     OrderStatus.QUALIFIED.value: {
+        OrderStatus.CLARIFICATION.value,
         OrderStatus.PROPOSAL.value,
         OrderStatus.CANCELLED.value,
     },
     OrderStatus.PROPOSAL.value: {
+        OrderStatus.REVISION.value,
         OrderStatus.APPROVED.value,
+        OrderStatus.CANCELLED.value,
+    },
+    OrderStatus.REVISION.value: {
+        OrderStatus.PROPOSAL.value,
         OrderStatus.CANCELLED.value,
     },
     OrderStatus.APPROVED.value: {
@@ -127,8 +145,10 @@ STATUS_TRANSITIONS: dict[str, set[str]] = {
 
 ACTIVE_STATUSES = {
     OrderStatus.NEW.value,
+    OrderStatus.CLARIFICATION.value,
     OrderStatus.QUALIFIED.value,
     OrderStatus.PROPOSAL.value,
+    OrderStatus.REVISION.value,
     OrderStatus.APPROVED.value,
     OrderStatus.CONTRACT.value,
     OrderStatus.IN_PROGRESS.value,

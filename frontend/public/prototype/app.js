@@ -1,433 +1,8 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=1280">
-<title>ConsultFlow — интерактивный прототип</title>
-<style>
-  :root{
-    --bg:#F5F7FB;
-    --surface:#FFFFFF;
-    --surface-2:#F9FAFC;
-    --line:#E4E9F2;
-    --line-strong:#D5DCE8;
-    --text:#101828;
-    --muted:#667085;
-    --faint:#98A2B3;
-    --blue:#2563EB;
-    --blue-hover:#1D4ED8;
-    --blue-soft:#EFF4FF;
-    --green:#067647;
-    --green-soft:#ECFDF3;
-    --amber:#B54708;
-    --amber-soft:#FFFAEB;
-    --red:#B42318;
-    --red-soft:#FEF3F2;
-    --purple:#5925DC;
-    --purple-soft:#F4F3FF;
-    --cyan:#0E7090;
-    --cyan-soft:#ECFDFF;
-    --radius:12px;
-    --shadow:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06);
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
-  body{
-    background:var(--bg);
-    color:var(--text);
-    font-family:"Inter","Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
-    font-size:14px;
-    line-height:1.5;
-    -webkit-font-smoothing:antialiased;
-  }
-  button,input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
-  button{cursor:pointer}
-  a{color:var(--blue);text-decoration:none;cursor:pointer}
-  svg{display:block;flex:none}
 
-  /* ---------- Header ---------- */
-  .topbar{
-    position:sticky;top:0;z-index:30;
-    background:var(--surface);
-    border-bottom:1px solid var(--line);
-  }
-  .topbar-inner{
-    max-width:1240px;margin:0 auto;padding:0 32px;
-    height:72px;display:flex;align-items:center;justify-content:space-between;gap:24px;
-  }
-  .brand{display:flex;align-items:center;gap:12px;min-width:0}
-  .brand-mark{
-    width:38px;height:38px;border-radius:11px;flex:none;
-    background:var(--blue);color:#fff;
-    display:flex;align-items:center;justify-content:center;
-    font-size:13px;font-weight:800;letter-spacing:.3px;
-    box-shadow:0 4px 10px rgba(37,99,235,.22);
-  }
-  .brand-name{font-size:17px;font-weight:700;letter-spacing:-.2px;line-height:1.15}
-  .brand-slogan{font-size:11.5px;color:var(--muted);margin-top:2px}
-  .topbar-right{display:flex;align-items:center;gap:16px}
-  .role-switch{
-    display:flex;align-items:center;gap:2px;
-    background:#F2F4F7;border:1px solid var(--line);border-radius:9px;padding:3px;
-  }
-  .role-btn{
-    border:0;background:transparent;color:var(--muted);
-    height:30px;padding:0 14px;border-radius:7px;
-    font-size:13px;font-weight:600;transition:.15s;
-  }
-  .role-btn:hover{color:var(--text)}
-  .role-btn.active{background:var(--surface);color:var(--blue);box-shadow:0 1px 2px rgba(16,24,40,.10)}
-  .avatar{
-    width:34px;height:34px;border-radius:50%;flex:none;
-    background:var(--blue-soft);color:var(--blue);
-    display:flex;align-items:center;justify-content:center;
-    font-size:12px;font-weight:700;
-  }
-  .proto-badge{
-    font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
-    color:var(--muted);background:#F2F4F7;border-radius:6px;padding:3px 7px;
-  }
-
-  /* ---------- Layout ---------- */
-  .container{max-width:1240px;margin:0 auto;padding:26px 32px 56px}
-  .container.narrow{max-width:960px}
-  .page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:18px}
-  h1.page-title{font-size:26px;line-height:1.2;letter-spacing:-.5px;margin:0 0 5px;font-weight:750}
-  .page-sub{color:var(--muted);font-size:13px;margin:0}
-  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
-
-  /* ---------- Buttons ---------- */
-  .btn{
-    display:inline-flex;align-items:center;justify-content:center;gap:7px;
-    height:38px;padding:0 14px;border-radius:8px;
-    border:1px solid transparent;background:transparent;
-    font-size:13.5px;font-weight:600;white-space:nowrap;
-    transition:background .15s,border-color .15s,color .15s,box-shadow .15s;
-  }
-  .btn svg{width:16px;height:16px}
-  .btn:focus-visible{outline:2px solid rgba(37,99,235,.35);outline-offset:2px}
-  .btn-primary{background:var(--blue);color:#fff;box-shadow:0 2px 6px rgba(37,99,235,.18)}
-  .btn-primary:hover{background:var(--blue-hover)}
-  .btn-secondary{background:var(--surface);border-color:var(--line-strong);color:#344054}
-  .btn-secondary:hover{background:#F8FAFC;border-color:#BFC8D8}
-  .btn-ghost{color:var(--blue);padding:0 8px}
-  .btn-ghost:hover{background:var(--blue-soft)}
-  .btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none}
-  .btn-sm{height:32px;padding:0 10px;font-size:12.5px;border-radius:7px}
-
-  /* ---------- Toolbar ---------- */
-  .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-  .search{
-    position:relative;flex:1;max-width:420px;
-  }
-  .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--faint)}
-  .search input{
-    width:100%;height:38px;padding:0 12px 0 34px;
-    background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;
-    outline:none;transition:border-color .15s,box-shadow .15s;
-  }
-  .search input::placeholder{color:var(--faint)}
-  .search input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.10)}
-  .select{
-    height:38px;padding:0 32px 0 12px;border:1px solid var(--line-strong);border-radius:8px;
-    background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 11px center;
-    outline:none;appearance:none;transition:border-color .15s,box-shadow .15s;
-  }
-  .select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.10)}
-  .toolbar-count{margin-left:auto;font-size:12.5px;color:var(--faint);white-space:nowrap}
-
-  /* ---------- Table ---------- */
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-  .table-wrap{overflow-x:auto}
-  table.requests{width:100%;border-collapse:collapse;min-width:900px}
-  table.requests th{
-    text-align:left;font-size:11px;font-weight:700;letter-spacing:.55px;text-transform:uppercase;
-    color:var(--faint);background:var(--surface-2);
-    padding:11px 16px;border-bottom:1px solid var(--line);white-space:nowrap;
-  }
-  table.requests td{padding:14px 16px;border-bottom:1px solid #EEF2F7;vertical-align:middle;font-size:13.5px}
-  table.requests tr:last-child td{border-bottom:0}
-  table.requests tbody tr{cursor:pointer;transition:background .12s}
-  table.requests tbody tr:hover{background:#F8FAFF}
-  .num{font-weight:650;font-variant-numeric:tabular-nums;color:var(--text)}
-  .client-cell{display:flex;align-items:center;gap:10px;min-width:0}
-  .avatar-sm{
-    width:30px;height:30px;border-radius:50%;flex:none;
-    background:#F2F4F7;color:#475467;font-size:10.5px;font-weight:700;
-    display:flex;align-items:center;justify-content:center;
-  }
-  .client-cell b{display:block;font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .client-cell span{display:block;color:var(--muted);font-size:11.5px;margin-top:1px}
-  .service{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#344054}
-  .responsible{color:#344054;white-space:nowrap}
-  .due{color:#344054;white-space:nowrap;font-variant-numeric:tabular-nums}
-  .due small{display:block;color:var(--faint);font-size:11px;margin-top:1px}
-
-  /* ---------- Status ---------- */
-  .status{
-    display:inline-flex;align-items:center;gap:6px;
-    height:24px;padding:0 9px;border-radius:999px;
-    font-size:12px;font-weight:600;white-space:nowrap;
-  }
-  .status-dot{width:6px;height:6px;border-radius:50%;flex:none;background:currentColor}
-  .st-new{background:var(--blue-soft);color:#175CD3}
-  .st-clarification{background:var(--amber-soft);color:var(--amber)}
-  .st-sent{background:var(--cyan-soft);color:var(--cyan)}
-  .st-revision{background:var(--red-soft);color:var(--red)}
-  .st-in_progress{background:var(--purple-soft);color:var(--purple)}
-  .st-done{background:var(--green-soft);color:var(--green)}
-
-  .empty{padding:52px 20px;text-align:center;color:var(--muted)}
-  .empty b{display:block;color:var(--text);font-size:14px;margin-bottom:4px}
-
-  /* ---------- Card screen ---------- */
-  .back-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:16px}
-  .back-link:hover{color:var(--blue)}
-  .back-link svg{width:15px;height:15px}
-  .card-head{align-items:flex-start}
-  .card-head h1{font-size:25px;letter-spacing:-.4px;margin:0 0 5px;font-weight:750}
-  .company{font-size:13.5px;color:var(--muted);margin:0}
-  .meta-strip{
-    display:flex;flex-wrap:wrap;gap:0;
-    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
-    box-shadow:var(--shadow);margin-bottom:20px;overflow:hidden;
-  }
-  .meta-item{padding:13px 18px;border-right:1px solid var(--line);min-width:0}
-  .meta-item:last-child{border-right:0}
-  .meta-label{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:3px}
-  .meta-value{font-size:13px;font-weight:550;color:#344054;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-  .tabs{display:flex;gap:26px;border-bottom:1px solid var(--line);margin-bottom:18px}
-  .tab{
-    border:0;background:transparent;padding:0 0 12px;position:relative;
-    color:var(--muted);font-size:13.5px;font-weight:600;
-  }
-  .tab:hover{color:var(--text)}
-  .tab.active{color:var(--blue)}
-  .tab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--blue);border-radius:2px}
-  .tab .tab-count{font-weight:500;color:var(--faint);margin-left:4px}
-
-  .panel{
-    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
-    box-shadow:var(--shadow);padding:20px 22px;margin-bottom:16px;
-  }
-  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
-  .panel h2{font-size:15px;font-weight:700;letter-spacing:-.1px;margin:0}
-  .version{font-size:11.5px;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-weight:600}
-  .panel p{margin:0}
-  .muted{color:var(--muted)}
-  .small{font-size:12.5px}
-
-  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .kv{display:grid;grid-template-columns:130px 1fr;gap:9px 14px;margin:0}
-  .kv dt{color:var(--muted);font-size:12.5px}
-  .kv dd{margin:0;color:#344054;font-size:13px}
-  .description{color:#344054;font-size:13.5px;line-height:1.6;margin-top:12px!important}
-
-  .file-chip{
-    display:inline-flex;align-items:center;gap:8px;margin-top:14px;
-    border:1px solid var(--line);border-radius:8px;background:var(--surface-2);
-    padding:8px 11px;font-size:12.5px;color:#344054;
-  }
-  .file-chip svg{width:16px;height:16px;color:var(--blue)}
-
-  /* Auto processing */
-  .auto-box{background:#F7FAFF;border:1px solid #DCE7FB;border-radius:10px;padding:14px 15px}
-  .auto-item{display:flex;align-items:flex-start;gap:9px;font-size:12.8px;color:#344054;margin-bottom:9px}
-  .auto-item:last-child{margin-bottom:0}
-  .auto-item svg{width:15px;height:15px;color:var(--green);margin-top:1px}
-  .auto-item b{font-weight:650}
-  .auto-note{font-size:11.5px;color:var(--muted);font-style:italic;margin-top:12px!important;padding-top:11px;border-top:1px dashed #D7E3F8}
-  .auto-controls{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .auto-controls .select{width:100%}
-  .kb-line{margin-top:13px!important;font-size:12px;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px}
-  .kb-line a{font-weight:600}
-
-  /* Fields */
-  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
-  .field label,.field > span{font-size:12.5px;font-weight:600;color:#344054}
-  .input,.textarea{
-    width:100%;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);
-    padding:9px 11px;outline:none;transition:border-color .15s,box-shadow .15s;font-size:13.5px;
-  }
-  .input{height:38px}
-  .textarea{resize:vertical;min-height:82px;line-height:1.5}
-  .input:focus,.textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.10)}
-  .input[disabled],.textarea[disabled]{background:var(--surface-2);color:var(--muted);cursor:not-allowed}
-  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
-  .form-grid .span-2{grid-column:1/-1}
-
-  .clarify-box{display:flex;gap:10px;align-items:flex-end;margin-top:12px}
-  .clarify-box .field{flex:1;margin-bottom:0}
-  .qa{margin-top:14px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
-  .qa-head{background:var(--surface-2);padding:7px 11px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--line)}
-  .qa-body{padding:10px 11px;font-size:13px;color:#344054}
-
-  /* Approvals */
-  .approvals{display:flex;flex-wrap:wrap;gap:10px;margin:2px 0 16px}
-  .approval{
-    display:inline-flex;align-items:center;gap:7px;
-    background:var(--green-soft);border:1px solid #ABEFC6;border-radius:7px;
-    padding:6px 10px;font-size:12px;color:var(--green);font-weight:600;
-  }
-  .approval svg{width:14px;height:14px}
-  .approval.muted{background:var(--surface-2);border-color:var(--line);color:var(--muted)}
-
-  /* Documents */
-  .doc{
-    display:flex;align-items:center;gap:11px;
-    border:1px solid var(--line);border-radius:9px;padding:11px 12px;background:var(--surface);
-    margin-top:10px;
-  }
-  .doc-icon{
-    width:34px;height:34px;border-radius:8px;flex:none;
-    background:var(--blue-soft);color:var(--blue);
-    display:flex;align-items:center;justify-content:center;
-  }
-  .doc-icon svg{width:17px;height:17px}
-  .doc-name{font-size:13px;font-weight:600;color:#344054}
-  .doc-meta{font-size:11.5px;color:var(--faint);margin-top:1px}
-  .doc-tag{margin-left:auto;font-size:11px;font-weight:600;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);padding:2px 7px;border-radius:5px;white-space:nowrap}
-
-  /* Notices */
-  .notice{border-radius:9px;padding:11px 13px;font-size:13px;margin:12px 0}
-  .notice b{display:block;font-size:12.5px;margin-bottom:3px}
-  .notice p{font-size:13px;color:#344054}
-  .notice-green{background:var(--green-soft);border:1px solid #ABEFC6;color:var(--green)}
-  .notice-amber{background:var(--amber-soft);border:1px solid #FEDF89;color:var(--amber)}
-  .notice-blue{background:var(--blue-soft);border:1px solid #C7D7FE;color:#175CD3}
-  .notice-note{font-size:11.5px;color:var(--muted);margin-top:4px!important}
-
-  /* Execution */
-  .exec-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px dashed #E9EEF5}
-  .exec-row:last-child{border-bottom:0;padding-bottom:0}
-  .exec-title{font-size:13px;font-weight:600;color:#344054}
-  .exec-sub{font-size:11.5px;color:var(--faint);margin-top:1px}
-  .exec-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
-
-  /* Timeline */
-  .timeline{position:relative;margin:4px 0 0;padding-left:22px}
-  .timeline::before{content:"";position:absolute;left:5px;top:7px;bottom:7px;width:1px;background:var(--line)}
-  .tl-item{position:relative;padding:0 0 18px}
-  .tl-item:last-child{padding-bottom:0}
-  .tl-item::before{
-    content:"";position:absolute;left:-21px;top:5px;width:9px;height:9px;border-radius:50%;
-    background:var(--surface);border:2px solid #BFC8D8;
-  }
-  .tl-item.blue::before{border-color:var(--blue)}
-  .tl-item.green::before{border-color:var(--green)}
-  .tl-item.amber::before{border-color:#DC6803}
-  .tl-text{font-size:13px;color:#344054}
-  .tl-time{font-size:11.5px;color:var(--faint);margin-top:2px}
-
-  /* ---------- Client ---------- */
-  .client-hero{
-    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
-    box-shadow:var(--shadow);padding:22px;margin-bottom:16px;
-  }
-  .client-hero .status{margin-left:auto}
-  .summary-top{display:flex;align-items:flex-start;gap:16px}
-  .summary-top h2{font-size:19px;margin:0 0 4px;letter-spacing:-.3px}
-  .summary-top p{color:var(--muted);font-size:13px;margin:0}
-  .stepper{display:flex;align-items:flex-start;margin-top:22px}
-  .step{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px}
-  .step::before{content:"";position:absolute;top:12px;left:50%;width:100%;height:2px;background:var(--line);z-index:0}
-  .step:last-child::before{display:none}
-  .step.done::before,.step.active::before{background:var(--blue)}
-  .step-dot{
-    width:26px;height:26px;border-radius:50%;background:var(--surface);border:2px solid var(--line-strong);
-    display:flex;align-items:center;justify-content:center;position:relative;z-index:1;
-    font-size:11px;font-weight:700;color:var(--faint);
-  }
-  .step.done .step-dot{background:var(--blue);border-color:var(--blue);color:#fff}
-  .step.active .step-dot{border-color:var(--blue);color:var(--blue);box-shadow:0 0 0 4px rgba(37,99,235,.10)}
-  .step-label{font-size:12px;color:var(--muted);font-weight:550}
-  .step.active .step-label{color:var(--blue);font-weight:650}
-  .step.done .step-label{color:#344054}
-  .proposal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
-  .metric{border:1px solid var(--line);border-radius:8px;background:var(--surface-2);padding:10px 12px}
-  .metric-label{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:3px}
-  .metric-value{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.2px}
-  .metric-value.small-value{font-size:12.5px;font-weight:600;line-height:1.4}
-  .actions-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-  .solution{font-size:13.5px;color:#344054;line-height:1.6}
-  .client-hint{font-size:12.5px;color:var(--muted);margin-top:10px!important}
-
-  /* ---------- Modal ---------- */
-  .modal-backdrop{
-    position:fixed;inset:0;z-index:60;background:rgba(16,24,40,.45);
-    display:flex;align-items:flex-start;justify-content:center;padding:64px 20px 20px;
-    animation:fade .15s ease;
-  }
-  .modal{
-    width:100%;max-width:520px;background:var(--surface);border-radius:14px;
-    box-shadow:0 20px 50px rgba(16,24,40,.22);overflow:hidden;animation:up .18s ease;
-  }
-  .modal.small{max-width:430px}
-  .modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px 20px 0}
-  .modal-head h3{font-size:17px;margin:0;letter-spacing:-.2px}
-  .modal-head p{font-size:12.5px;color:var(--muted);margin:4px 0 0}
-  .modal-close{
-    width:30px;height:30px;border:0;background:transparent;border-radius:7px;color:var(--muted);
-    font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;
-  }
-  .modal-close:hover{background:var(--surface-2);color:var(--text)}
-  .modal-body{padding:16px 20px 4px}
-  .modal-actions{display:flex;justify-content:flex-end;gap:10px;padding:14px 20px 18px;border-top:1px solid var(--line);margin-top:6px;background:var(--surface)}
-  .modal-actions .btn{min-width:96px}
-  .file-drop{
-    display:flex;align-items:center;gap:9px;
-    border:1px dashed var(--line-strong);border-radius:8px;background:var(--surface-2);
-    padding:10px 12px;font-size:12.5px;color:var(--muted);cursor:pointer;
-  }
-  .file-drop:hover{border-color:#BFC8D8;background:#F8FAFC}
-  .file-drop svg{width:16px;height:16px;color:var(--blue)}
-  .file-drop b{color:#344054;font-weight:600}
-
-  /* ---------- Toast ---------- */
-  .toast{
-    position:fixed;right:24px;bottom:24px;z-index:80;
-    display:flex;align-items:center;gap:9px;
-    background:#101828;color:#fff;border-radius:10px;padding:11px 15px;
-    font-size:13px;box-shadow:0 12px 30px rgba(16,24,40,.28);
-    opacity:0;transform:translateY(8px);pointer-events:none;transition:.2s;
-    max-width:min(420px,calc(100vw - 48px));
-  }
-  .toast.show{opacity:1;transform:translateY(0)}
-  .toast svg{width:16px;height:16px;color:#6CE9A6}
-
-  @keyframes fade{from{opacity:0}to{opacity:1}}
-  @keyframes up{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-
-  @media (max-width:1080px){
-    .grid-2{grid-template-columns:1fr}
-    .meta-item{flex:1 1 40%}
-  }
-  @media (max-width:760px){
-    .topbar-inner{padding:0 16px}
-    .brand-slogan{display:none}
-    .container{padding:20px 16px 40px}
-    .form-grid{grid-template-columns:1fr}
-    .form-grid .span-2{grid-column:auto}
-    .proposal-grid{grid-template-columns:1fr}
-    .toolbar{flex-wrap:wrap}
-    .search{max-width:none;flex-basis:100%}
-    .toolbar-count{margin-left:0}
-    .page-head{flex-direction:column;gap:12px}
-    .step-label{font-size:10.5px}
-  }
-</style>
-</head>
-<body>
-<main id="app"></main>
-<div id="modal-root"></div>
-<div class="toast" id="toast"></div>
-
-<script>
 /* =========================================================
    ConsultFlow — учебный интерактивный прототип
    Три экрана: «Заявки», «Карточка заявки», «Кабинет клиента».
-   Все данные живут только в памяти до перезагрузки страницы.
+   Данные загружаются из общего API /api/prototype и сохраняются в БД.
    ========================================================= */
 
 const ICONS = {
@@ -474,168 +49,23 @@ const CONSULTANTS = [
   'Мария Ковалёва'
 ];
 
-const historyItem = (text, time) => ({ text, time });
-
-const requestsSeed = [
-  {
-    id: 104,
-    number: '104',
-    company: 'ООО «Вектор»',
-    contact: 'Иван Петров',
-    email: 'petrov@vektor.ru',
-    service: 'Консультация по оптимизации процесса продаж',
-    description: 'Нужно разобрать текущий процесс продаж, найти узкие места и предложить план оптимизации. В процессе участвуют 12 менеджеров, используется CRM «Битрикс24».',
-    file: 'Техническое задание.pdf',
-    manager: 'Алексей Иванов',
-    status: 'new',
-    due: '05.11.2026',
-    practice: 'management',
-    consultant: 'Анна Смирнова',
-    practiceConfirmed: true,
-    proposalVersion: 0,
-    cost: 45000,
-    days: 5,
-    sla: 'Ответ на обращение в течение 1 рабочего дня',
-    solution: 'Диагностика процесса продаж, интервью с менеджерами, карта узких мест и план оптимизации на 3 месяца.',
-    clarification: null,
-    answer: null,
-    remarks: null,
-    signed: false,
-    contract: false,
-    workStarted: false,
-    act: false,
-    actConfirmed: false,
-    history: [
-      historyItem('Заявка зарегистрирована', '09:12'),
-      historyItem('Данные извлечены, дубликаты не найдены', '09:12'),
-      historyItem('Практика и консультант подтверждены', '09:15')
-    ]
-  },
-  {
-    id: 103,
-    number: '103',
-    company: 'ООО «Альфа»',
-    contact: 'Ольга Кузнецова',
-    email: 'o.kuznetsova@alfa.ru',
-    service: 'Аудит бизнес-процессов',
-    description: 'Требуется независимый аудит ключевых бизнес-процессов перед переходом на новую ERP-систему.',
-    file: 'Описание процессов.docx',
-    manager: 'Мария Ковалёва',
-    status: 'clarification',
-    due: '06.11.2026',
-    practice: 'management',
-    consultant: 'Дмитрий Орлов',
-    practiceConfirmed: true,
-    proposalVersion: 0,
-    cost: 68000,
-    days: 10,
-    sla: 'Ответ на обращение в течение 1 рабочего дня',
-    solution: 'Аудит процессов, интервью с владельцами, карта рисков и рекомендации по переходу на ERP.',
-    clarification: 'Сколько сотрудников участвует в процессе и какая ERP выбрана?',
-    answer: null,
-    remarks: null,
-    signed: false,
-    contract: false,
-    workStarted: false,
-    act: false,
-    actConfirmed: false,
-    history: [
-      historyItem('Заявка зарегистрирована', '14:05'),
-      historyItem('Данные извлечены, дубликаты не найдены', '14:05'),
-      historyItem('Практика и консультант подтверждены', '14:08'),
-      historyItem('Уточнение отправлено клиенту', '14:10')
-    ]
-  },
-  {
-    id: 102,
-    number: '102',
-    company: 'ООО «Ромашка»',
-    contact: 'Сергей Волков',
-    email: 's.volkov@romashka.ru',
-    service: 'Финансовая модель инвестиционного проекта',
-    description: 'Нужна финансовая модель на 5 лет с тремя сценариями и расчётом окупаемости.',
-    file: 'Исходные данные.xlsx',
-    manager: 'Алексей Иванов',
-    status: 'in_progress',
-    due: '03.11.2026',
-    practice: 'finance',
-    consultant: 'Мария Ковалёва',
-    practiceConfirmed: true,
-    proposalVersion: 1,
-    cost: 120000,
-    days: 15,
-    sla: 'Ответ на обращение в течение 1 рабочего дня',
-    solution: 'Финансовая модель с тремя сценариями, расчёт NPV, IRR и срока окупаемости.',
-    clarification: null,
-    answer: null,
-    remarks: null,
-    signed: true,
-    contract: true,
-    workStarted: true,
-    act: false,
-    actConfirmed: false,
-    history: [
-      historyItem('Заявка зарегистрирована', '10:20'),
-      historyItem('Данные извлечены, дубликаты не найдены', '10:20'),
-      historyItem('Практика и консультант подтверждены', '10:24'),
-      historyItem('КП отправлено', '12:05'),
-      historyItem('КП подписано и сохранено', '15:30'),
-      historyItem('Договор сформирован', '16:02'),
-      historyItem('Работа начата', '16:05')
-    ]
-  },
-  {
-    id: 101,
-    number: '101',
-    company: 'ООО «Старт»',
-    contact: 'Анна Белова',
-    email: 'a.belova@start.ru',
-    service: 'Юридическая экспертиза договора',
-    description: 'Проверить договор поставки на риски и подготовить протокол разногласий.',
-    file: 'Договор поставки.pdf',
-    manager: 'Мария Ковалёва',
-    status: 'done',
-    due: '30.10.2026',
-    practice: 'legal',
-    consultant: 'Дмитрий Орлов',
-    practiceConfirmed: true,
-    proposalVersion: 1,
-    cost: 30000,
-    days: 3,
-    sla: 'Ответ на обращение в течение 1 рабочего дня',
-    solution: 'Правовая экспертиза договора, перечень рисков и протокол разногласий.',
-    clarification: null,
-    answer: null,
-    remarks: null,
-    signed: true,
-    contract: true,
-    workStarted: true,
-    act: true,
-    actConfirmed: true,
-    history: [
-      historyItem('Заявка зарегистрирована', '09:40'),
-      historyItem('Данные извлечены, дубликаты не найдены', '09:40'),
-      historyItem('Практика и консультант подтверждены', '09:45'),
-      historyItem('КП отправлено', '10:15'),
-      historyItem('КП подписано и сохранено', '11:00'),
-      historyItem('Договор сформирован', '11:10'),
-      historyItem('Работа начата', '11:12'),
-      historyItem('Акт подтверждён, заказ завершён', '29.10.2026')
-    ]
-  }
-];
+const API_BASE = window.CONSULTFLOW_API || '/api/prototype';
 
 const state = {
   role: 'staff',
   view: 'list',
-  activeId: 104,
+  activeId: null,
   tab: 'request',
   search: '',
   filter: 'all',
   modal: null,
   remarkOpen: false,
-  lastId: 104,
-  requests: requestsSeed
+  ready: false,
+  error: null,
+  practices: PRACTICES,
+  consultants: CONSULTANTS,
+  requests: [],
+  detail: null
 };
 
 /* ---------- helpers ---------- */
@@ -643,31 +73,80 @@ const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[ch]));
 
-const nowTime = () => new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 const money = (value) => `${new Intl.NumberFormat('ru-RU').format(Number(value) || 0)} ₽`;
-const active = () => state.requests.find((item) => item.id === state.activeId) || state.requests[0];
+const active = () => state.detail || state.requests[0] || null;
 const statusPill = (status) => {
   const meta = STATUS[status] || STATUS.new;
   return `<span class="status ${meta.cls}"><span class="status-dot"></span>${meta.label}</span>`;
 };
-const practiceLabel = (key) => (PRACTICES.find(([value]) => value === key) || PRACTICES[0])[1];
-const addHistory = (request, text) => {
-  request.history.push(historyItem(text, nowTime()));
-};
-const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+const practiceLabel = (key) => (state.practices.find(([value]) => value === key) || state.practices[0] || ['management', 'Управленческий консалтинг'])[1];
+const initials = (name) => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 
+function apiErrorText(detail, fallback) {
+  if (!detail) return fallback;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((item) => item.msg || JSON.stringify(item)).join('; ');
+  }
+  return fallback;
+}
+
+async function api(path, { method = 'GET', body } = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  const text = await response.text();
+  let payload = null;
+  try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
+  if (!response.ok) {
+    throw new Error(apiErrorText(payload && payload.detail, `Ошибка API (${response.status})`));
+  }
+  return payload;
+}
+
+async function load(orderId) {
+  const query = orderId ? `?order_id=${encodeURIComponent(orderId)}` : '';
+  const data = await api(`/bootstrap${query}`);
+  state.requests = data.orders || [];
+  state.practices = (data.practices || []).map((item) => [item.value, item.label]);
+  state.consultants = data.consultants || CONSULTANTS;
+  state.detail = data.current || state.requests[0] || null;
+  state.activeId = state.detail ? state.detail.id : null;
+  state.ready = true;
+  state.error = null;
+}
+
+async function reload(orderId = state.activeId) {
+  try {
+    await load(orderId);
+    render();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function refreshAfter(promise, message, { closeModal = false } = {}) {
+  try {
+    const result = await promise;
+    if (closeModal) {
+      state.modal = null;
+      state.remarkOpen = false;
+    }
+    await load(result && result.id ? result.id : state.activeId);
+    render();
+    toast(message);
+  } catch (error) {
+    toast(error.message);
+  }
+}
 function toast(message) {
   const node = document.getElementById('toast');
   node.innerHTML = `${ICONS.checkCircle}<span>${esc(message)}</span>`;
   node.classList.add('show');
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => node.classList.remove('show'), 3200);
-}
-
-function tomorrow() {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  return date.toLocaleDateString('ru-RU');
 }
 
 /* ---------- header ---------- */
@@ -827,9 +306,9 @@ function renderTab(request) {
 }
 
 function renderRequestTab(request) {
-  const practiceOptions = PRACTICES.map(([value, label]) =>
+  const practiceOptions = state.practices.map(([value, label]) =>
     `<option value="${value}" ${request.practice === value ? 'selected' : ''}>${label}</option>`).join('');
-  const consultantOptions = CONSULTANTS.map((name) =>
+  const consultantOptions = state.consultants.map((name) =>
     `<option value="${esc(name)}" ${request.consultant === name ? 'selected' : ''}>${esc(name)}</option>`).join('');
 
   return `
@@ -954,7 +433,7 @@ function renderDocsTab(request) {
       <div class="field">
         <label for="kp-consultant">Консультант</label>
         <select class="select" id="kp-consultant" ${locked ? 'disabled' : ''}>
-          ${CONSULTANTS.map((name) => `<option value="${esc(name)}" ${request.consultant === name ? 'selected' : ''}>${esc(name)}</option>`).join('')}
+          ${state.consultants.map((name) => `<option value="${esc(name)}" ${request.consultant === name ? 'selected' : ''}>${esc(name)}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -1096,7 +575,7 @@ function renderClient() {
     ${renderClientAct(request)}
 
     <p class="client-hint" style="text-align:center;margin-top:18px!important">
-      Это демонстрационный прототип. Документы и подписи имитируются, данные не сохраняются после перезагрузки.
+      Это демонстрационный прототип. Заявка, статусы и документы сохраняются в общей базе ConsultFlow, электронная подпись имитируется.
     </p>
   </div>`;
 }
@@ -1289,7 +768,7 @@ function renderModal() {
         <div class="modal-body">
           <div class="notice notice-blue" style="margin-top:0">
             <b>Демонстрационное действие</b>
-            <p>Настоящая электронная подпись не используется. Подпись имитируется и сохраняется только до перезагрузки страницы.</p>
+            <p>Настоящая электронная подпись не используется. Подпись имитируется и сохраняется в базе ConsultFlow.</p>
           </div>
         </div>
         <div class="modal-actions">
@@ -1302,7 +781,19 @@ function renderModal() {
 }
 
 /* ---------- actions ---------- */
-function handleAction(action, dataset) {
+function orderPath(request) {
+  return `/orders/${request.id}`;
+}
+
+function orderAction(request, action, body, message, options = {}) {
+  return refreshAfter(
+    api(`${orderPath(request)}/${action}`, { method: 'POST', body }),
+    message,
+    options
+  );
+}
+
+async function handleAction(action, dataset) {
   const request = active();
 
   switch (action) {
@@ -1314,6 +805,7 @@ function handleAction(action, dataset) {
 
     case 'open':
       state.activeId = Number(dataset.id);
+      state.detail = state.requests.find((item) => item.id === state.activeId) || state.detail;
       state.view = 'card';
       state.tab = 'request';
       state.remarkOpen = false;
@@ -1331,6 +823,19 @@ function handleAction(action, dataset) {
       render();
       break;
 
+    case 'reload':
+      state.ready = false;
+      state.error = null;
+      render();
+      try {
+        await load(state.activeId);
+        render();
+      } catch (error) {
+        state.error = error.message;
+        render();
+      }
+      break;
+
     case 'modal-new':
       state.modal = 'new';
       renderModal();
@@ -1343,52 +848,52 @@ function handleAction(action, dataset) {
       break;
 
     case 'clarify': {
+      if (!request) return;
       const value = (document.getElementById('clarify-input')?.value || '').trim();
       if (!value) {
         toast('Введите вопрос клиенту');
         document.getElementById('clarify-input')?.focus();
         return;
       }
-      request.clarification = value;
-      request.answer = null;
-      request.status = 'clarification';
-      addHistory(request, 'Уточнение отправлено клиенту');
-      toast('Уточнение отправлено клиенту');
-      render();
+      await orderAction(request, 'clarify', { question: value }, 'Уточнение отправлено клиенту');
       break;
     }
 
     case 'answer': {
+      if (!request) return;
       const value = (document.getElementById('answer-text')?.value || '').trim();
       if (!value) {
         toast('Введите ответ');
         document.getElementById('answer-text')?.focus();
         return;
       }
-      request.answer = value;
-      addHistory(request, 'Ответ клиента получен');
-      toast('Ответ отправлен менеджеру');
-      render();
+      await orderAction(request, 'answer', { answer: value }, 'Ответ отправлен менеджеру');
       break;
     }
 
     case 'send-kp': {
+      if (!request) return;
       const solution = (document.getElementById('solution')?.value || '').trim();
       if (!solution) {
         toast('Заполните описание решения');
         return;
       }
-      request.solution = solution;
-      request.cost = Number(document.getElementById('cost')?.value) || 0;
-      request.days = Number(document.getElementById('days')?.value) || 1;
-      request.sla = (document.getElementById('sla')?.value || '').trim();
-      request.consultant = document.getElementById('kp-consultant')?.value || request.consultant;
-      request.proposalVersion += 1;
-      request.status = 'sent';
-      request.remarks = null;
-      addHistory(request, request.proposalVersion > 1 ? 'Обновлённое КП отправлено' : 'КП отправлено');
-      toast(request.proposalVersion > 1 ? 'Обновлённое КП отправлено клиенту' : 'КП отправлено клиенту');
-      render();
+      const sla = (document.getElementById('sla')?.value || '').trim();
+      if (!sla) {
+        toast('Заполните условия SLA');
+        return;
+      }
+      const body = {
+        solution,
+        cost: Number(document.getElementById('cost')?.value) || 0,
+        days: Number(document.getElementById('days')?.value) || 1,
+        sla,
+        consultant: document.getElementById('kp-consultant')?.value || request.consultant
+      };
+      const message = request.proposalVersion > 0
+        ? 'Обновлённое КП отправлено клиенту'
+        : 'КП отправлено клиенту';
+      await orderAction(request, 'proposal', body, message);
       break;
     }
 
@@ -1398,17 +903,14 @@ function handleAction(action, dataset) {
       break;
 
     case 'submit-remarks': {
+      if (!request) return;
       const value = (document.getElementById('remarks-text')?.value || '').trim();
       if (!value) {
         toast('Опишите, что необходимо изменить');
         return;
       }
-      request.remarks = value;
-      request.status = 'revision';
       state.remarkOpen = false;
-      addHistory(request, 'Получены замечания');
-      toast('Замечания отправлены менеджеру');
-      render();
+      await orderAction(request, 'remarks', { text: value }, 'Замечания отправлены менеджеру');
       break;
     }
 
@@ -1418,41 +920,29 @@ function handleAction(action, dataset) {
       break;
 
     case 'confirm-sign': {
-      request.signed = true;
-      state.modal = null;
-      addHistory(request, 'КП подписано и сохранено');
-      toast('КП подписано');
-      render();
+      if (!request) return;
+      await orderAction(request, 'sign', undefined, 'КП подписано', { closeModal: true });
       break;
     }
 
     case 'contract':
-      request.contract = true;
-      addHistory(request, 'Договор сформирован');
-      toast('Договор сформирован');
-      render();
+      if (!request) return;
+      await orderAction(request, 'contract', undefined, 'Договор сформирован');
       break;
 
     case 'start':
-      request.workStarted = true;
-      request.status = 'in_progress';
-      addHistory(request, 'Работа начата');
-      toast('Работа начата');
-      render();
+      if (!request) return;
+      await orderAction(request, 'start', undefined, 'Работа начата');
       break;
 
     case 'act':
-      request.act = true;
-      toast('Акт выполненных работ сформирован');
-      render();
+      if (!request) return;
+      await orderAction(request, 'act', undefined, 'Акт выполненных работ сформирован');
       break;
 
     case 'confirm-act':
-      request.actConfirmed = true;
-      request.status = 'done';
-      addHistory(request, 'Акт подтверждён, заказ завершён');
-      toast('Акт подтверждён. Заказ завершён');
-      render();
+      if (!request) return;
+      await orderAction(request, 'confirm-act', undefined, 'Акт подтверждён. Заказ завершён', { closeModal: true });
       break;
 
     default:
@@ -1474,7 +964,7 @@ function bindForm() {
     }
   });
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const data = new FormData(form);
     const company = String(data.get('company') || '').trim();
@@ -1486,51 +976,33 @@ function bindForm() {
       return;
     }
 
-    state.lastId += 1;
-    const id = state.lastId;
     const file = fileInput?.files && fileInput.files[0];
-
-    const request = {
-      id,
-      number: String(id),
-      company,
-      contact,
-      email,
-      service: description.length > 70 ? `${description.slice(0, 70)}…` : description,
-      description,
-      file: file ? file.name : 'Техническое задание.pdf',
-      manager: 'Алексей Иванов',
-      status: 'new',
-      due: tomorrow(),
-      practice: 'management',
-      consultant: 'Анна Смирнова',
-      practiceConfirmed: false,
-      proposalVersion: 0,
-      cost: 0,
-      days: 5,
-      sla: 'Ответ на обращение в течение 1 рабочего дня',
-      solution: '',
-      clarification: null,
-      answer: null,
-      remarks: null,
-      signed: false,
-      contract: false,
-      workStarted: false,
-      act: false,
-      actConfirmed: false,
-      history: [historyItem('Заявка зарегистрирована', nowTime())]
-    };
-
-    state.requests.unshift(request);
-    state.activeId = id;
-    state.modal = null;
-    state.remarkOpen = false;
-    if (state.role === 'staff') {
-      state.view = 'card';
-      state.tab = 'request';
+    const submit = form.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      const created = await api('/orders', {
+        method: 'POST',
+        body: {
+          company,
+          contact,
+          email,
+          description,
+          file_name: file ? file.name : null
+        }
+      });
+      state.modal = null;
+      state.remarkOpen = false;
+      if (state.role === 'staff') {
+        state.view = 'card';
+        state.tab = 'request';
+      }
+      await load(created.id);
+      render();
+      toast('Заявка создана');
+    } catch (error) {
+      toast(error.message);
+      if (submit) submit.disabled = false;
     }
-    toast('Заявка создана');
-    render();
   });
 }
 
@@ -1558,27 +1030,30 @@ function bindListControls() {
 
 function bindCardControls() {
   const request = active();
+  if (!request) return;
 
   const practice = document.getElementById('practice-select');
-  practice?.addEventListener('change', () => {
-    request.practice = practice.value;
-    if (!request.practiceConfirmed) {
-      request.practiceConfirmed = true;
-      addHistory(request, 'Практика и консультант подтверждены');
-    }
-    toast('Практика обновлена');
-    render();
+  practice?.addEventListener('change', async () => {
+    const consultant = document.getElementById('consultant-select')?.value || request.consultant;
+    await refreshAfter(
+      api(`${orderPath(request)}/practice`, {
+        method: 'POST',
+        body: { practice: practice.value, consultant }
+      }),
+      'Практика обновлена'
+    );
   });
 
   const consultant = document.getElementById('consultant-select');
-  consultant?.addEventListener('change', () => {
-    request.consultant = consultant.value;
-    if (!request.practiceConfirmed) {
-      request.practiceConfirmed = true;
-      addHistory(request, 'Практика и консультант подтверждены');
-    }
-    toast('Консультант обновлён');
-    render();
+  consultant?.addEventListener('change', async () => {
+    const practiceValue = document.getElementById('practice-select')?.value || request.practice;
+    await refreshAfter(
+      api(`${orderPath(request)}/practice`, {
+        method: 'POST',
+        body: { practice: practiceValue, consultant: consultant.value }
+      }),
+      'Консультант обновлён'
+    );
   });
 
   const kpConsultant = document.getElementById('kp-consultant');
@@ -1587,7 +1062,58 @@ function bindCardControls() {
   });
 }
 
+function renderLoading() {
+  const app = document.getElementById('app');
+  app.innerHTML = `${renderHeader()}
+  <div class="container">
+    <div class="card"><div class="empty"><b>Загружаем данные</b>Подключаемся к базе ConsultFlow…</div></div>
+  </div>`;
+}
+
+function renderError() {
+  const app = document.getElementById('app');
+  app.innerHTML = `${renderHeader()}
+  <div class="container">
+    <div class="card">
+      <div class="empty">
+        <b>Не удалось загрузить данные</b>
+        <p>${esc(state.error || 'Проверьте соединение с бэкендом.')}</p>
+        <p class="client-hint">Запустите backend на <code>127.0.0.1:8000</code> и откройте прототип через frontend: <code>/prototype/</code>.</p>
+        <button class="btn btn-primary" data-action="reload">Повторить</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderEmpty() {
+  const app = document.getElementById('app');
+  app.innerHTML = `${renderHeader()}
+  <div class="container">
+    <div class="page-head">
+      <div><h1 class="page-title">Заявки</h1><p class="page-sub">В демо-базе пока нет заявок.</p></div>
+      <button class="btn btn-primary" data-action="modal-new">${ICONS.plus}Новая заявка</button>
+    </div>
+    <div class="card"><div class="empty"><b>Список пуст</b>Создайте первую заявку.</div></div>
+  </div>`;
+}
+
 function render() {
+  if (!state.ready && !state.error) {
+    renderLoading();
+    return;
+  }
+  if (state.error) {
+    renderError();
+    return;
+  }
+  if (!active()) {
+    renderEmpty();
+    bindListControls();
+    renderModal();
+    bindForm();
+    return;
+  }
+
   const app = document.getElementById('app');
   app.innerHTML = state.role === 'client'
     ? renderClient()
@@ -1623,7 +1149,13 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-render();
-</script>
-</body>
-</html>
+(async function init() {
+  try {
+    await load();
+    render();
+  } catch (error) {
+    state.ready = true;
+    state.error = error.message;
+    render();
+  }
+})();

@@ -1,8 +1,10 @@
 export type UserRole = 'admin' | 'manager' | 'consultant' | 'lawyer' | 'finance';
 export type OrderStatus =
   | 'new'
+  | 'clarification'
   | 'qualified'
   | 'proposal'
+  | 'revision'
   | 'approved'
   | 'contract'
   | 'in_progress'

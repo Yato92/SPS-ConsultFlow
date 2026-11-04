@@ -108,6 +108,9 @@ class Order(Base):
     notifications: Mapped[list["Notification"]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
     )
+    workflow: Mapped["OrderWorkflow | None"] = relationship(
+        back_populates="order", uselist=False, cascade="all, delete-orphan"
+    )
 
     @property
     def is_overdue(self) -> bool:
@@ -120,6 +123,44 @@ class Order(Base):
         }:
             return False
         return self.sla_due_at < utcnow()
+
+
+class OrderWorkflow(Base):
+    """Демонстрационный сценарий ConsultFlow: уточнения, КП и подписи."""
+
+    __tablename__ = "order_workflows"
+
+    order_id: Mapped[int] = mapped_column(
+        ForeignKey("orders.id", ondelete="CASCADE"), primary_key=True
+    )
+    display_number: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    file_name: Mapped[str] = mapped_column(
+        String(255), default="Техническое задание.pdf"
+    )
+    consultant_name: Mapped[str] = mapped_column(
+        String(255), default="Анна Смирнова"
+    )
+    solution: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_days: Mapped[int] = mapped_column(Integer, default=5)
+    sla_text: Mapped[str] = mapped_column(
+        String(255), default="Ответ на обращение в течение 1 рабочего дня"
+    )
+    clarification_question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    clarification_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+    proposal_version: Mapped[int] = mapped_column(Integer, default=0)
+    practice_confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    contract_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    work_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    act_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    act_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, onupdate=utcnow
+    )
+
+    order: Mapped["Order"] = relationship(back_populates="workflow")
 
 
 class OrderEvent(Base):

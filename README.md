@@ -83,13 +83,17 @@ ConsultFlow собирает весь цикл в один процесс:
 ## UX/UI-прототип
 
 Для защиты и демонстрации пути заявки сделан отдельный лёгкий макет на три экрана:
-«Заявки», «Карточка заявки», «Кабинет клиента». Это один HTML-файл без сборки и
-бэкенда: откройте [prototype/index.html](prototype/index.html) или запустите
-`python -m http.server 8080 -d prototype`.
+«Заявки», «Карточка заявки», «Кабинет клиента». Он встроен в frontend и работает
+с общей базой данных через API `/api/prototype`: заявки, статусы, КП и документы
+сохраняются и видны в Telegram-боте и React-дашборде.
 
-Переключатель «Сотрудник / Клиент» показывает обе роли на общих состояниях,
+Запустите backend и frontend, затем откройте
+<http://127.0.0.1:5173/prototype/>. Исходники —
+[frontend/public/prototype/](frontend/public/prototype/).
+
+Переключатель «Сотрудник / Клиент» показывает обе роли на одной и той же заявке,
 поэтому замечания, подписание КП и подтверждение акта сразу видны с обеих сторон.
-Подробнее — [prototype/README.md](prototype/README.md).
+Подробнее — [frontend/public/prototype/README.md](frontend/public/prototype/README.md).
 
 ## Стек технологий
 
@@ -138,9 +142,9 @@ ConsultFlow-Lab/
 │   │   ├── services/      # заказы, цены, документы, аналитика
 │   │   ├── models.py      # SQLAlchemy-модели
 │   │   ├── schemas.py     # Pydantic-схемы
-│   │   ├── seed.py        # демо-данные (72 заказа, 10 клиентов, 5 сотрудников)
+│   │   ├── seed.py        # демо-данные (76 заказов, 14 клиентов, 6 сотрудников)
 │   │   └── main.py        # точка входа, CORS, lifespan
-│   ├── tests/             # pytest: 34 теста
+│   ├── tests/             # pytest: 39 тестов
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── bot/                   # Telegram-бот
@@ -154,6 +158,7 @@ ConsultFlow-Lab/
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/              # React SPA
+│   ├── public/prototype/  # интерактивный UX/UI-макет на 3 экрана (HTML + API)
 │   ├── src/
 │   │   ├── api/           # axios-клиент, типы, React Query hooks
 │   │   ├── auth/          # контекст авторизации
@@ -162,7 +167,6 @@ ConsultFlow-Lab/
 │   │   └── styles/
 │   ├── Dockerfile
 │   └── nginx.conf
-├── prototype/             # интерактивный UX/UI-макет на 3 экрана (HTML, без сборки)
 ├── docs/                  # архитектура, API, BPMN, тестирование
 ├── consultflow-wiki/      # продуктовые артефакты РГР
 ├── dashboard/             # учебный Dash-дашборд из предыдущей лабораторной
@@ -200,7 +204,7 @@ uvicorn app.main:app --reload --port 8000
 - Swagger: <http://127.0.0.1:8000/docs>
 - Проверка: <http://127.0.0.1:8000/health>
 
-При первом старте база создаётся автоматически и наполняется демо-данными (72 заказа).
+При первом старте база создаётся автоматически и наполняется демо-данными (76 заказов).
 Если база уже есть, повторное наполнение не выполняется.
 
 ### 3. Frontend
@@ -355,9 +359,10 @@ cd backend
 ..\.venv-backend\Scripts\python.exe -m pytest
 ```
 
-- 34 теста: авторизация, права доступа, статусы, документы, аналитика, бот, расчёты;
+- 39 тестов: авторизация, права доступа, статусы, документы, аналитика, бот, расчёты и сценарии прототипа;
 - отдельная тестовая БД, детерминированные фикстуры;
-- проверка типов и сборки фронтенда: `cd frontend && npm run build`.
+- проверка типов и сборки фронтенда: `cd frontend && npm run build`;
+- браузерные сценарии прототипа проверены в headless Edge.
 
 Матрица проверок и ручные сценарии: [docs/testing.md](docs/testing.md).
 
@@ -367,7 +372,7 @@ cd backend
 - [docs/api.md](docs/api.md) — описание REST API и примеры запросов;
 - [docs/bpmn.md](docs/bpmn.md) — процесс «как есть / как должно быть», статусы и SLA;
 - [docs/testing.md](docs/testing.md) — программа и результаты тестирования;
-- [prototype/README.md](prototype/README.md) — как открыть интерактивный макет и пройти оба сценария;
+- [frontend/public/prototype/README.md](frontend/public/prototype/README.md) — как открыть интерактивный макет и пройти оба сценария;
 - [consultflow-wiki/](consultflow-wiki/) — продуктовые артефакты РГР (роли, состояние, развитие).
 
 ## Ссылки

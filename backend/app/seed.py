@@ -16,7 +16,15 @@ from app.core.enums import (
 )
 from app.core.security import hash_password
 from app.core.utils import to_money, utcnow
-from app.models import BotUser, Client, Document, Order, OrderEvent, User
+from app.models import (
+    BotUser,
+    Client,
+    Document,
+    Order,
+    OrderEvent,
+    OrderWorkflow,
+    User,
+)
 from app.services.documents import build_document
 from app.services.pricing import estimate, get_sla_hours
 
@@ -157,9 +165,9 @@ def seed(db: Session, *, force: bool = False) -> bool:
     bot_client = BotUser(
         telegram_id=700000001,
         username="demo_client",
-        full_name="Смирнов Алексей Владимирович",
+        full_name="Иван Петров",
         phone="+7 (914) 123-45-67",
-        email="client@example.ru",
+        email="petrov@vektor.ru",
         role=BotRole.CLIENT.value,
     )
     bot_manager = BotUser(
@@ -172,7 +180,7 @@ def seed(db: Session, *, force: bool = False) -> bool:
     db.add_all([bot_client, bot_manager])
     db.flush()
 
-    clients[0].telegram_id = bot_client.telegram_id
+    # Демо-клиент «Вектор» связывается с Telegram-ботом в seed_prototype().
 
     year_counters: dict[int, int] = {}
     orders: list[Order] = []
@@ -319,6 +327,382 @@ def seed(db: Session, *, force: bool = False) -> bool:
                     created_at=created_at + timedelta(hours=2),
                 )
             )
+
+    db.commit()
+    return True
+
+
+def _demo_client(
+    db: Session, name: str, contact: str, email: str
+) -> Client:
+    client = db.scalar(select(Client).where(Client.name == name))
+    if client is None:
+        client = Client(name=name, contact_person=contact, email=email)
+        db.add(client)
+        db.flush()
+    else:
+        client.contact_person = contact
+        client.email = email
+    return client
+
+
+def _demo_event(
+    db: Session,
+    order: Order,
+    *,
+    to_status: str,
+    comment: str,
+    created_at,
+    from_status: str | None = None,
+    actor_type: str = "system",
+) -> None:
+    db.add(
+        OrderEvent(
+            order_id=order.id,
+            from_status=from_status,
+            to_status=to_status,
+            comment=comment,
+            actor_type=actor_type,
+            created_at=created_at,
+        )
+    )
+
+
+def _demo_documents(
+    db: Session, order: Order, items: list[tuple[str, str, object]]
+) -> None:
+    for doc_type, status, created_at in items:
+        payload = build_document(order, doc_type)
+        db.add(
+            Document(
+                order_id=order.id,
+                doc_type=doc_type,
+                number=payload["number"],
+                status=status,
+                payload=payload,
+                created_at=created_at,
+            )
+        )
+
+
+def seed_prototype(db: Session) -> bool:
+    """Добавляет четыре демо-заявки и связывает «Вектор» с Telegram-ботом.
+
+    Функция идемпотентна и вызывается отдельно от seed(), чтобы демо-сценарий
+    появился и в уже существующей базе.
+    """
+    now = utcnow()
+    demo = _demo_client(db, "ООО «Вектор»", "Иван Петров", "petrov@vektor.ru")
+
+    bot_user = db.scalar(
+        select(BotUser).where(BotUser.telegram_id == 700000001)
+    )
+    if bot_user is not None:
+        bot_user.full_name = "Иван Петров"
+        bot_user.email = "petrov@vektor.ru"
+        bot_user.username = bot_user.username or "demo_client"
+
+    # У одного клиента может быть только один Telegram-аккаунт.
+    for other in db.scalars(
+        select(Client).where(
+            Client.telegram_id == 700000001, Client.id != demo.id
+        )
+    ).all():
+        other.telegram_id = None
+    demo.telegram_id = 700000001
+
+    manager = db.scalar(select(User).where(User.email == "a.ivanov@consultflow.ru"))
+    if manager is None:
+        manager = User(
+            email="a.ivanov@consultflow.ru",
+            full_name="Алексей Иванов",
+            password_hash=hash_password("manager12345"),
+            role=UserRole.MANAGER.value,
+        )
+        db.add(manager)
+    db.commit()
+
+    if db.scalar(select(Order).where(Order.source == "prototype").limit(1)):
+        return False
+
+    alfa = _demo_client(db, "ООО «Альфа»", "Мария Соколова", "sokolova@alfa.ru")
+    romashka = _demo_client(
+        db, "ООО «Ромашка»", "Ольга Кузнецова", "kuznetsova@romashka.ru"
+    )
+    start = _demo_client(db, "ООО «Старт»", "Павел Орлов", "orlov@start.ru")
+    year = now.year
+
+    # 104 — новая заявка, с которой начинается основной сценарий.
+    created = now - timedelta(hours=2)
+    order_104 = Order(
+        number=f"CF-{year}-0104",
+        client=demo,
+        manager=manager,
+        practice=Practice.MANAGEMENT.value,
+        title="Разработка стратегии развития на 2026–2028 годы",
+        description=(
+            "Нужна помощь с разработкой стратегии развития компании: "
+            "диагностика, интервью с руководителями и итоговая презентация."
+        ),
+        status=OrderStatus.NEW.value,
+        amount=to_money(45000),
+        deadline=(now + timedelta(days=1)).date(),
+        sla_due_at=now + timedelta(days=1),
+        source="prototype",
+        created_at=created,
+        updated_at=created + timedelta(hours=2),
+    )
+    db.add(order_104)
+    db.flush()
+    db.add(
+        OrderWorkflow(
+            order_id=order_104.id,
+            display_number="104",
+            file_name="Бриф_Вектор.pdf",
+            consultant_name="Анна Смирнова",
+            solution=(
+                "Провести диагностику, интервью с руководителями и подготовить "
+                "стратегию развития на 2026–2028 годы."
+            ),
+            duration_days=5,
+            sla_text="Ответ на обращение в течение 1 рабочего дня",
+            practice_confirmed=True,
+            created_at=created,
+            updated_at=created + timedelta(hours=2),
+        )
+    )
+    _demo_event(
+        db, order_104, to_status=OrderStatus.NEW.value,
+        comment="Заявка зарегистрирована", created_at=created,
+    )
+    _demo_event(
+        db, order_104, to_status=OrderStatus.NEW.value,
+        comment="Данные извлечены, дубликаты не найдены",
+        created_at=created + timedelta(hours=1), from_status=OrderStatus.NEW.value,
+    )
+    _demo_event(
+        db, order_104, to_status=OrderStatus.NEW.value,
+        comment="Практика и консультант подтверждены",
+        created_at=created + timedelta(hours=2), from_status=OrderStatus.NEW.value,
+    )
+    _demo_documents(
+        db, order_104,
+        [(DocumentType.REQUEST.value, "draft", created + timedelta(minutes=20))],
+    )
+
+    # 103 — заявка на уточнении.
+    created = now - timedelta(days=1, hours=3)
+    order_103 = Order(
+        number=f"CF-{year}-0103",
+        client=alfa,
+        manager=manager,
+        practice=Practice.FINANCE.value,
+        title="Постановка управленческого учёта",
+        description="Требуется поставить управленческий учёт и обучить команду.",
+        status=OrderStatus.CLARIFICATION.value,
+        amount=to_money(0),
+        deadline=(now + timedelta(days=2)).date(),
+        sla_due_at=now + timedelta(days=2),
+        source="prototype",
+        created_at=created,
+        updated_at=created + timedelta(days=1),
+    )
+    db.add(order_103)
+    db.flush()
+    db.add(
+        OrderWorkflow(
+            order_id=order_103.id,
+            display_number="103",
+            file_name="ТЗ_Альфа.pdf",
+            consultant_name="Дмитрий Орлов",
+            duration_days=7,
+            sla_text="Ответ на обращение в течение 1 рабочего дня",
+            clarification_question=(
+                "Уточните, пожалуйста, сколько сотрудников и подразделений "
+                "нужно охватить управленческим учётом?"
+            ),
+            practice_confirmed=True,
+            created_at=created,
+            updated_at=created + timedelta(days=1),
+        )
+    )
+    _demo_event(
+        db, order_103, to_status=OrderStatus.NEW.value,
+        comment="Заявка зарегистрирована", created_at=created,
+    )
+    _demo_event(
+        db, order_103, to_status=OrderStatus.NEW.value,
+        comment="Данные извлечены, дубликаты не найдены",
+        created_at=created + timedelta(hours=1), from_status=OrderStatus.NEW.value,
+    )
+    _demo_event(
+        db, order_103, to_status=OrderStatus.NEW.value,
+        comment="Практика и консультант подтверждены",
+        created_at=created + timedelta(hours=2), from_status=OrderStatus.NEW.value,
+    )
+    _demo_event(
+        db, order_103, to_status=OrderStatus.CLARIFICATION.value,
+        comment="Уточнение отправлено клиенту",
+        created_at=created + timedelta(days=1),
+        from_status=OrderStatus.NEW.value,
+    )
+    _demo_documents(
+        db, order_103,
+        [(DocumentType.REQUEST.value, "draft", created + timedelta(minutes=20))],
+    )
+
+    # 102 — КП подписано, договор сформирован, работа идёт.
+    created = now - timedelta(days=8)
+    order_102 = Order(
+        number=f"CF-{year}-0102",
+        client=romashka,
+        manager=manager,
+        practice=Practice.LEGAL.value,
+        title="Правовая экспертиза договорного портфеля",
+        description="Проверить договоры поставки и подготовить рекомендации.",
+        status=OrderStatus.IN_PROGRESS.value,
+        amount=to_money(120000),
+        paid_amount=to_money(60000),
+        expenses=to_money(20000),
+        deadline=(now + timedelta(days=8)).date(),
+        sla_due_at=now + timedelta(days=8),
+        source="prototype",
+        created_at=created,
+        updated_at=now - timedelta(days=2),
+    )
+    db.add(order_102)
+    db.flush()
+    db.add(
+        OrderWorkflow(
+            order_id=order_102.id,
+            display_number="102",
+            file_name="Договоры_Ромашка.zip",
+            consultant_name="Мария Ковалёва",
+            solution=(
+                "Провести правовую экспертизу договорного портфеля, "
+                "подготовить карту рисков и рекомендации по правкам."
+            ),
+            duration_days=10,
+            sla_text="Ответ на обращение в течение 1 рабочего дня",
+            proposal_version=1,
+            practice_confirmed=True,
+            signed_at=now - timedelta(days=5),
+            contract_at=now - timedelta(days=4),
+            work_started_at=now - timedelta(days=2),
+            created_at=created,
+            updated_at=now - timedelta(days=2),
+        )
+    )
+    for index, (status, comment) in enumerate(
+        [
+            (OrderStatus.NEW.value, "Заявка зарегистрирована"),
+            (OrderStatus.QUALIFIED.value, "Заявка квалифицирована"),
+            (OrderStatus.PROPOSAL.value, "КП отправлено"),
+            (OrderStatus.APPROVED.value, "КП подписано и сохранено"),
+            (OrderStatus.CONTRACT.value, "Договор сформирован"),
+            (OrderStatus.IN_PROGRESS.value, "Работа начата"),
+        ]
+    ):
+        _demo_event(
+            db, order_102,
+            to_status=status,
+            comment=comment,
+            created_at=created + timedelta(days=index),
+            from_status=None if index == 0 else [
+                OrderStatus.NEW.value,
+                OrderStatus.QUALIFIED.value,
+                OrderStatus.PROPOSAL.value,
+                OrderStatus.APPROVED.value,
+                OrderStatus.CONTRACT.value,
+            ][index - 1],
+        )
+    _demo_documents(
+        db, order_102,
+        [
+            (DocumentType.REQUEST.value, "draft", created + timedelta(minutes=20)),
+            (DocumentType.PROPOSAL.value, "signed", created + timedelta(days=1)),
+            (DocumentType.CONTRACT.value, "signed", created + timedelta(days=3)),
+        ],
+    )
+
+    # 101 — завершённая заявка с подписанным актом.
+    created = now - timedelta(days=20)
+    order_101 = Order(
+        number=f"CF-{year}-0101",
+        client=start,
+        manager=manager,
+        practice=Practice.IT.value,
+        title="Внедрение BI-отчётности для руководства",
+        description="Собрать требования и внедрить управленческую BI-отчётность.",
+        status=OrderStatus.DONE.value,
+        amount=to_money(78000),
+        paid_amount=to_money(78000),
+        expenses=to_money(30000),
+        deadline=(now - timedelta(days=2)).date(),
+        sla_due_at=now - timedelta(days=2),
+        source="prototype",
+        created_at=created,
+        updated_at=now - timedelta(days=1),
+    )
+    db.add(order_101)
+    db.flush()
+    db.add(
+        OrderWorkflow(
+            order_id=order_101.id,
+            display_number="101",
+            file_name="ТЗ_Старт.pdf",
+            consultant_name="Анна Смирнова",
+            solution=(
+                "Собрать требования, настроить BI-дашборды и обучить "
+                "руководителей работе с отчётностью."
+            ),
+            duration_days=7,
+            sla_text="Ответ на обращение в течение 1 рабочего дня",
+            proposal_version=1,
+            practice_confirmed=True,
+            signed_at=now - timedelta(days=16),
+            contract_at=now - timedelta(days=14),
+            work_started_at=now - timedelta(days=12),
+            act_at=now - timedelta(days=2),
+            act_confirmed_at=now - timedelta(days=1),
+            created_at=created,
+            updated_at=now - timedelta(days=1),
+        )
+    )
+    for index, (status, comment) in enumerate(
+        [
+            (OrderStatus.NEW.value, "Заявка зарегистрирована"),
+            (OrderStatus.QUALIFIED.value, "Заявка квалифицирована"),
+            (OrderStatus.PROPOSAL.value, "КП отправлено"),
+            (OrderStatus.APPROVED.value, "КП подписано и сохранено"),
+            (OrderStatus.CONTRACT.value, "Договор сформирован"),
+            (OrderStatus.IN_PROGRESS.value, "Работа начата"),
+            (OrderStatus.DONE.value, "Акт подтверждён, заказ завершён"),
+        ]
+    ):
+        _demo_event(
+            db, order_101,
+            to_status=status,
+            comment=comment,
+            created_at=created + timedelta(days=index * 2),
+            from_status=None if index == 0 else [
+                OrderStatus.NEW.value,
+                OrderStatus.QUALIFIED.value,
+                OrderStatus.PROPOSAL.value,
+                OrderStatus.APPROVED.value,
+                OrderStatus.CONTRACT.value,
+                OrderStatus.IN_PROGRESS.value,
+            ][index - 1],
+        )
+    _demo_documents(
+        db, order_101,
+        [
+            (DocumentType.REQUEST.value, "draft", created + timedelta(minutes=20)),
+            (DocumentType.PROPOSAL.value, "signed", created + timedelta(days=2)),
+            (DocumentType.CONTRACT.value, "signed", created + timedelta(days=6)),
+            (DocumentType.ACT.value, "signed", created + timedelta(days=18)),
+        ],
+    )
 
     db.commit()
     return True

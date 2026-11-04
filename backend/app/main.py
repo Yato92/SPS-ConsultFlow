@@ -5,11 +5,20 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import analytics, auth, bot, clients, orders, telegram, users
+from app.api.routes import (
+    analytics,
+    auth,
+    bot,
+    clients,
+    orders,
+    prototype,
+    telegram,
+    users,
+)
 from app.core.config import get_settings
 from app.core.enums import PRACTICE_LABELS, STATUS_LABELS
 from app.db.session import Base, SessionLocal, engine
-from app.seed import seed
+from app.seed import seed, seed_prototype
 
 settings = get_settings()
 
@@ -20,6 +29,7 @@ async def lifespan(_: FastAPI):
     if settings.seed_demo:
         with SessionLocal() as db:
             seed(db)
+            seed_prototype(db)
     yield
 
 
@@ -52,6 +62,7 @@ app.include_router(clients.router, prefix=api)
 app.include_router(users.router, prefix=api)
 app.include_router(telegram.router, prefix=api)
 app.include_router(bot.router, prefix=api)
+app.include_router(prototype.router, prefix=api)
 
 
 @app.get("/health", tags=["system"])

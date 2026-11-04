@@ -5,8 +5,10 @@ export const STATUS_META: Record<
   { label: string; color: string; short: string }
 > = {
   new: { label: 'Новая заявка', color: '#6068F8', short: 'Новая' },
+  clarification: { label: 'На уточнении', color: '#FA8C16', short: 'Уточнение' },
   qualified: { label: 'Квалифицирована', color: '#2F54EB', short: 'Квалификация' },
   proposal: { label: 'КП отправлено', color: '#FAAD14', short: 'КП' },
+  revision: { label: 'На доработке', color: '#FA541C', short: 'Доработка' },
   approved: { label: 'КП согласовано', color: '#52C41A', short: 'Согласовано' },
   contract: { label: 'Договор подписан', color: '#13C2C2', short: 'Договор' },
   in_progress: { label: 'В работе', color: '#9254DE', short: 'В работе' },
@@ -17,8 +19,10 @@ export const STATUS_META: Record<
 
 export const STATUS_ORDER: OrderStatus[] = [
   'new',
+  'clarification',
   'qualified',
   'proposal',
+  'revision',
   'approved',
   'contract',
   'in_progress',
@@ -47,8 +51,10 @@ export const NEXT_STATUS: Partial<
   Record<OrderStatus, { value: OrderStatus; label: string }>
 > = {
   new: { value: 'qualified', label: 'Квалифицировать' },
+  clarification: { value: 'proposal', label: 'Отправить КП' },
   qualified: { value: 'proposal', label: 'Отправить КП' },
   proposal: { value: 'approved', label: 'КП согласовано' },
+  revision: { value: 'proposal', label: 'Отправить обновлённое КП' },
   approved: { value: 'contract', label: 'Договор подписан' },
   contract: { value: 'in_progress', label: 'Взять в работу' },
   in_progress: { value: 'done', label: 'Работы выполнены' },

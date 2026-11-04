@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     )
     frontend_url: str = "http://localhost:5173"
     seed_demo: bool = True
+    # Публичный демонстрационный API для учебного прототипа (без production-данных).
+    prototype_demo: bool = True
 
     bot_api_token: str = "dev-bot-token-change-me"
     manager_telegram_ids: str = ""

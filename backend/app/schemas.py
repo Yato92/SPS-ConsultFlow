@@ -349,3 +349,94 @@ class NotificationAckIn(BaseModel):
 class PricingInfoOut(BaseModel):
     practices: list[dict[str, Any]]
     complexities: list[dict[str, Any]]
+
+
+# ---------- Учебный прототип ConsultFlow ----------
+
+
+class PrototypeHistoryOut(BaseModel):
+    text: str
+    time: str
+
+
+class PrototypeDocumentOut(BaseModel):
+    id: int
+    type: str
+    name: str
+    status: str
+    created_at: datetime
+
+
+class PrototypeOrderOut(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: int
+    number: str
+    company: str
+    contact: str
+    email: str | None = None
+    service: str
+    description: str | None = None
+    file: str
+    manager: str
+    status: str
+    practice: str
+    practice_label: str = Field(alias="practiceLabel")
+    consultant: str
+    cost: float
+    days: int
+    sla: str
+    solution: str | None = None
+    due: str
+    clarification: str | None = None
+    answer: str | None = None
+    remarks: str | None = None
+    proposal_version: int = Field(alias="proposalVersion")
+    signed: bool
+    contract: bool
+    work_started: bool = Field(alias="workStarted")
+    act: bool
+    act_confirmed: bool = Field(alias="actConfirmed")
+    practice_confirmed: bool = Field(alias="practiceConfirmed")
+    history: list[PrototypeHistoryOut]
+    documents: list[PrototypeDocumentOut]
+
+
+class PrototypeBootstrapOut(BaseModel):
+    orders: list[PrototypeOrderOut]
+    current: PrototypeOrderOut | None = None
+    practices: list[dict[str, str]]
+    consultants: list[str]
+
+
+class PrototypeOrderCreate(BaseModel):
+    company: str = Field(min_length=2, max_length=255)
+    contact: str = Field(min_length=2, max_length=255)
+    email: EmailStr
+    description: str = Field(min_length=5, max_length=4000)
+    file_name: str | None = Field(default=None, max_length=255)
+
+
+class PrototypeClarifyIn(BaseModel):
+    question: str = Field(min_length=3, max_length=2000)
+
+
+class PrototypeAnswerIn(BaseModel):
+    answer: str = Field(min_length=2, max_length=4000)
+
+
+class PrototypeProposalIn(BaseModel):
+    solution: str = Field(min_length=3, max_length=4000)
+    cost: float = Field(ge=0)
+    days: int = Field(ge=1, le=365)
+    sla: str = Field(min_length=3, max_length=255)
+    consultant: str = Field(min_length=2, max_length=255)
+
+
+class PrototypeRemarksIn(BaseModel):
+    text: str = Field(min_length=3, max_length=4000)
+
+
+class PrototypePracticeIn(BaseModel):
+    practice: Practice
+    consultant: str = Field(min_length=2, max_length=255)

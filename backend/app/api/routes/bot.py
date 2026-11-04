@@ -246,7 +246,16 @@ def manager_queue(
 
     orders = db.scalars(
         select(Order)
-        .where(Order.status.in_([OrderStatus.NEW.value, OrderStatus.QUALIFIED.value]))
+        .where(
+            Order.status.in_(
+                [
+                    OrderStatus.NEW.value,
+                    OrderStatus.CLARIFICATION.value,
+                    OrderStatus.QUALIFIED.value,
+                    OrderStatus.REVISION.value,
+                ]
+            )
+        )
         .order_by(Order.created_at.asc())
         .limit(20)
     ).all()

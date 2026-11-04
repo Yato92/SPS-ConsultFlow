@@ -65,24 +65,27 @@ Telegram ──▶ aiogram ──┐
 | `orders` | заказы | `number`, `title`, `practice`, `status`, `amount`, `paid_amount`, `expenses`, `hours`, `complexity`, `sla_due_at`, `deadline`, `manager_id`, `client_id`, `source` |
 | `order_events` | история статусов | `order_id`, `from_status`, `to_status`, `actor_type`, `actor_id`, `comment` |
 | `documents` | документы | `order_id`, `doc_type`, `number`, `payload` (JSON), `status` |
+| `order_workflows` | сценарий прототипа | `order_id`, `display_number`, `solution`, `clarification_*`, `remarks`, `proposal_version`, подписи и даты этапов |
 | `bot_users` | пользователи Telegram | `telegram_id`, `username`, `role`, `user_id` |
 | `notifications` | outbox для бота | `recipient`, `text`, `status`, `created_at`, `sent_at` |
 | `audit_logs` | журнал действий | `actor_id`, `action`, `entity`, `entity_id`, `payload` |
 
 Связи: `Client 1—N Order`, `User (manager) 1—N Order`, `Order 1—N OrderEvent`,
-`Order 1—N Document`, `BotUser 1—0..1 User`.
+`Order 1—N Document`, `Order 1—1 OrderWorkflow`, `BotUser 1—0..1 User`.
 
 Номер заказа формируется как `CF-{год}-{порядковый номер}` и уникален.
 
 ## 4. Жизненный цикл заказа
 
 ```
-new → qualified → proposal → approved → contract → in_progress → done → closed
-        │            │           │           │            │
-        └────────────┴───────────┴───────────┴────────────┴──▶ cancelled
+new → clarification → qualified → proposal ⇄ revision → approved → contract → in_progress → done → closed
+        │                              │
+        └──────────────────────────────┴──────────────────────────────────────────▶ cancelled
 ```
 
-- Переходы ограничены словарём `STATUS_TRANSITIONS`; недопустимый переход возвращает `409`.
+- Уточнение (`clarification`) и доработка (`revision`) добавлены для сценария
+  прототипа: клиент отвечает на вопрос и отправляет замечания к КП.
+- Переходы ограничены словарём `STATUS_TRANSITIONS`; недопустимый переход возвращает `400`.
 - `cancelled` возможен на любом этапе, кроме `done` и `closed`.
 - Администратор может принудительно установить статус (с записью в аудит).
 - Каждый переход создаёт событие с автором (`user`, `bot`, `system`) и комментарием.
