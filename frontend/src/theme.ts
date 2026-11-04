@@ -1,0 +1,73 @@
+import type { ThemeConfig } from 'antd';
+
+export const theme: ThemeConfig = {
+  token: {
+    colorPrimary: '#6068F8',
+    colorInfo: '#6068F8',
+    colorSuccess: '#2FB344',
+    colorWarning: '#F5A524',
+    colorError: '#F03D3D',
+    colorTextBase: '#1D2130',
+    colorTextSecondary: '#6B7280',
+    colorBgLayout: '#F4F5FA',
+    colorBgContainer: '#FFFFFF',
+    colorBorder: '#E4E7F0',
+    colorBorderSecondary: '#EEF0F6',
+    borderRadius: 12,
+    borderRadiusLG: 16,
+    fontFamily:
+      "'Inter', 'Segoe UI', 'SF Pro Display', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif",
+    fontSize: 14,
+    controlHeight: 38,
+    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.04)',
+  },
+  components: {
+    Layout: {
+      siderBg: '#FFFFFF',
+      headerBg: '#FFFFFF',
+      bodyBg: '#F4F5FA',
+      headerHeight: 68,
+      headerPadding: '0 28px',
+    },
+    Menu: {
+      itemBorderRadius: 10,
+      itemSelectedBg: '#EEF0FF',
+      itemSelectedColor: '#4C55E8',
+      itemHoverBg: '#F5F6FE',
+      itemHeight: 44,
+      itemMarginInline: 12,
+      iconMarginInlineEnd: 12,
+      fontSize: 14,
+    },
+    Card: {
+      borderRadiusLG: 16,
+      paddingLG: 20,
+    },
+    Table: {
+      headerBg: '#F8F9FD',
+      headerColor: '#6B7280',
+      headerSplitColor: 'transparent',
+      rowHoverBg: '#FAFBFF',
+      borderColor: '#EEF0F6',
+      cellPaddingBlock: 13,
+    },
+    Button: {
+      controlHeight: 38,
+      borderRadius: 10,
+      fontWeight: 500,
+      primaryShadow: '0 6px 16px rgba(96, 104, 248, 0.24)',
+    },
+    Input: { controlHeight: 38, borderRadius: 10 },
+    Select: { controlHeight: 38, borderRadius: 10 },
+    Tag: { borderRadiusSM: 8 },
+    Segmented: {
+      itemSelectedBg: '#6068F8',
+      itemSelectedColor: '#FFFFFF',
+      trackBg: '#EEF0F6',
+      borderRadius: 10,
+    },
+    Tabs: { itemSelectedColor: '#4C55E8', inkBarColor: '#6068F8' },
+    Progress: { defaultColor: '#6068F8' },
+    Drawer: { paddingLG: 24 },
+  },
+};
