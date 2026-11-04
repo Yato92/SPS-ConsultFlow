@@ -11,6 +11,8 @@ def client_menu() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.button(text="📝 Оставить заявку", callback_data="order:new")
     kb.button(text="📋 Мои заявки", callback_data="my:list")
+    if get_settings().is_ai_configured:
+        kb.button(text="🤖 Спросить ИИ", callback_data="ai:ask")
     kb.button(text="🖥 Открыть кабинет", url=get_settings().prototype_url)
     kb.button(text="💰 Прайс-лист", callback_data="menu:pricing")
     kb.button(text="❓ Как это работает", callback_data="menu:help")
@@ -22,6 +24,8 @@ def manager_menu() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.button(text="📥 Очередь заявок", callback_data="mgr:queue")
     kb.button(text="📊 Статистика", callback_data="mgr:stats")
+    if get_settings().is_ai_configured:
+        kb.button(text="🤖 Спросить ИИ", callback_data="ai:ask")
     kb.button(text="🖥 Открыть дашборд", callback_data="mgr:link")
     kb.button(text="🧪 Открыть прототип", url=get_settings().prototype_url)
     kb.button(text="💰 Прайс-лист", callback_data="menu:pricing")

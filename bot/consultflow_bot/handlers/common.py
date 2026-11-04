@@ -8,6 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from consultflow_bot import views
+from consultflow_bot.ai import reset_history
 from consultflow_bot.api import APIError, ConsultFlowAPI
 from consultflow_bot.keyboards import back_to_client_menu, client_menu, manager_menu
 from consultflow_bot.utils import safe_edit
@@ -23,6 +24,7 @@ async def _register(api: ConsultFlowAPI, message: Message) -> dict:
 @router.message(CommandStart())
 async def cmd_start(message: Message, api: ConsultFlowAPI, state: FSMContext) -> None:
     await state.clear()
+    reset_history(message.from_user.id)
     try:
         data = await _register(api, message)
     except APIError as exc:
@@ -40,6 +42,7 @@ async def cmd_start(message: Message, api: ConsultFlowAPI, state: FSMContext) ->
 @router.message(Command("menu"))
 async def cmd_menu(message: Message, api: ConsultFlowAPI, state: FSMContext) -> None:
     await state.clear()
+    reset_history(message.from_user.id)
     try:
         data = await _register(api, message)
     except APIError as exc:
@@ -62,6 +65,7 @@ async def cmd_menu(message: Message, api: ConsultFlowAPI, state: FSMContext) -> 
 async def menu_home(callback: CallbackQuery, api: ConsultFlowAPI, state: FSMContext) -> None:
     await callback.answer()
     await state.clear()
+    reset_history(callback.from_user.id)
     try:
         data = await api.register(
             callback.from_user.id, callback.from_user.username, callback.from_user.full_name

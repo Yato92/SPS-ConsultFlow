@@ -20,9 +20,23 @@ class BotSettings(BaseSettings):
     notifications_interval: int = 5
     request_timeout: int = 20
 
+    ai_enabled: bool = True
+    polza_api_key: str = ""
+    polza_base_url: str = "https://polza.ai/api/v1"
+    ai_model: str = "openai/gpt-4o-mini"
+    ai_temperature: float = 0.4
+    ai_max_tokens: int = 700
+    ai_timeout: float = 45.0
+    ai_history_limit: int = 12
+    ai_extra_prompt: str = ""
+
     @property
     def is_configured(self) -> bool:
         return bool(self.bot_token) and ":" in self.bot_token and "PUT-YOUR" not in self.bot_token
+
+    @property
+    def is_ai_configured(self) -> bool:
+        return self.ai_enabled and bool(self.polza_api_key.strip())
 
 
 @lru_cache

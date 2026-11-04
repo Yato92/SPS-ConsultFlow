@@ -8,11 +8,11 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
+from consultflow_bot import ai
 from consultflow_bot.api import ConsultFlowAPI
 from consultflow_bot.config import get_settings
 from consultflow_bot.handlers import common, fallback, manager, my_orders, order
 from consultflow_bot.notifications import notification_worker
-
 logger = logging.getLogger(__name__)
 
 
@@ -42,6 +42,15 @@ async def run() -> None:
     dispatcher.include_router(order.router)
     dispatcher.include_router(my_orders.router)
     dispatcher.include_router(manager.router)
+    if settings.is_ai_configured:
+        dispatcher.include_router(ai.router)
+        logger.info(
+            "ИИ-консультант включён: %s (%s)",
+            settings.ai_model,
+            settings.polza_base_url,
+        )
+    else:
+        logger.info("ИИ-консультант выключен: добавьте POLZA_API_KEY в .env")
     dispatcher.include_router(fallback.router)
 
     worker = asyncio.create_task(
