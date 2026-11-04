@@ -1,0 +1,130 @@
+name: consultflow
+
+# Production-стек для VPS (reg.ru и любой Ubuntu/Debian).
+# Запуск: docker compose -f docker-compose.prod.yml --profile vk up -d --build
+# Наружу открыты только 80/443 Caddy. Postgres и backend — только внутри сети Docker.
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: consultflow
+      POSTGRES_USER: consultflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U consultflow -d consultflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      DATABASE_URL: postgresql+psycopg://consultflow:${POSTGRES_PASSWORD}@db:5432/consultflow
+      BOT_API_TOKEN: ${BOT_API_TOKEN:?set BOT_API_TOKEN in .env}
+      MANAGER_TELEGRAM_IDS: ${MANAGER_TELEGRAM_IDS:-}
+      CORS_ORIGINS: https://${DOMAIN:?set DOMAIN in .env}
+      FRONTEND_URL: https://${DOMAIN}
+      SEED_DEMO: ${SEED_DEMO:-true}
+      PROTOTYPE_DEMO: ${PROTOTYPE_DEMO:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@consultflow.ru}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+  vk-bot:
+    build: ./bot
+    command: ["python", "-m", "vk_bot.main"]
+    restart: unless-stopped
+    profiles: ["vk"]
+    environment:
+      VK_GROUP_ID: ${VK_GROUP_ID:?set VK_GROUP_ID in .env}
+      VK_TOKEN: ${VK_TOKEN:?set VK_TOKEN in .env}
+      BACKEND_URL: http://backend:8000
+      BOT_API_TOKEN: ${BOT_API_TOKEN}
+      MANAGER_TELEGRAM_IDS: ${MANAGER_TELEGRAM_IDS:-}
+      PROTOTYPE_URL: https://${DOMAIN}/prototype/
+      AI_ENABLED: ${AI_ENABLED:-true}
+      POLZA_API_KEY: ${POLZA_API_KEY:-}
+      POLZA_BASE_URL: ${POLZA_BASE_URL:-https://polza.ai/api/v1}
+      AI_MODEL: ${AI_MODEL:-deepseek/deepseek-v4.1-flash-1017}
+      AI_TEMPERATURE: ${AI_TEMPERATURE:-0.4}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-1200}
+      AI_TIMEOUT: ${AI_TIMEOUT:-90}
+      AI_HISTORY_LIMIT: ${AI_HISTORY_LIMIT:-12}
+      AI_EXTRA_PROMPT: ${AI_EXTRA_PROMPT:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  telegram-bot:
+    build: ./bot
+    command: ["python", "run.py"]
+    restart: unless-stopped
+    profiles: ["telegram"]
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN:-}
+      BACKEND_URL: http://backend:8000
+      BOT_API_TOKEN: ${BOT_API_TOKEN}
+      MANAGER_TELEGRAM_IDS: ${MANAGER_TELEGRAM_IDS:-}
+      TELEGRAM_PROXY: ${TELEGRAM_PROXY:-}
+      PROTOTYPE_URL: https://${DOMAIN}/prototype/
+      AI_ENABLED: ${AI_ENABLED:-true}
+      POLZA_API_KEY: ${POLZA_API_KEY:-}
+      POLZA_BASE_URL: ${POLZA_BASE_URL:-https://polza.ai/api/v1}
+      AI_MODEL: ${AI_MODEL:-deepseek/deepseek-v4.1-flash-1017}
+      AI_TEMPERATURE: ${AI_TEMPERATURE:-0.4}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-1200}
+      AI_TIMEOUT: ${AI_TIMEOUT:-90}
+      AI_HISTORY_LIMIT: ${AI_HISTORY_LIMIT:-12}
+      AI_EXTRA_PROMPT: ${AI_EXTRA_PROMPT:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

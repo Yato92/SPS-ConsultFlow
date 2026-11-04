@@ -59,12 +59,48 @@ services:
       BACKEND_URL: http://backend:8000
       BOT_API_TOKEN: ${BOT_API_TOKEN:-dev-bot-token-change-me}
       MANAGER_TELEGRAM_IDS: ${MANAGER_TELEGRAM_IDS:-}
+      TELEGRAM_PROXY: ${TELEGRAM_PROXY:-}
       PROTOTYPE_URL: http://localhost:8080/prototype/
+      AI_ENABLED: ${AI_ENABLED:-true}
+      POLZA_API_KEY: ${POLZA_API_KEY:-}
+      POLZA_BASE_URL: ${POLZA_BASE_URL:-https://polza.ai/api/v1}
+      AI_MODEL: ${AI_MODEL:-deepseek/deepseek-v4.1-flash-1017}
+      AI_TEMPERATURE: ${AI_TEMPERATURE:-0.4}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-1200}
+      AI_TIMEOUT: ${AI_TIMEOUT:-90}
+      AI_HISTORY_LIMIT: ${AI_HISTORY_LIMIT:-12}
+      AI_EXTRA_PROMPT: ${AI_EXTRA_PROMPT:-}
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
     profiles: ["bot"]
+
+  vk-bot:
+    build: ./bot
+    container_name: consultflow-vk-bot
+    command: ["python", "-m", "vk_bot.main"]
+    environment:
+      VK_GROUP_ID: ${VK_GROUP_ID:-}
+      VK_TOKEN: ${VK_TOKEN:-}
+      BACKEND_URL: http://backend:8000
+      BOT_API_TOKEN: ${BOT_API_TOKEN:-dev-bot-token-change-me}
+      MANAGER_TELEGRAM_IDS: ${MANAGER_TELEGRAM_IDS:-}
+      PROTOTYPE_URL: http://localhost:8080/prototype/
+      AI_ENABLED: ${AI_ENABLED:-true}
+      POLZA_API_KEY: ${POLZA_API_KEY:-}
+      POLZA_BASE_URL: ${POLZA_BASE_URL:-https://polza.ai/api/v1}
+      AI_MODEL: ${AI_MODEL:-deepseek/deepseek-v4.1-flash-1017}
+      AI_TEMPERATURE: ${AI_TEMPERATURE:-0.4}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-1200}
+      AI_TIMEOUT: ${AI_TIMEOUT:-90}
+      AI_HISTORY_LIMIT: ${AI_HISTORY_LIMIT:-12}
+      AI_EXTRA_PROMPT: ${AI_EXTRA_PROMPT:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["vk"]
 
   frontend:
     build: ./frontend

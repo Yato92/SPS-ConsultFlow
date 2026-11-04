@@ -167,9 +167,13 @@ new → clarification → qualified → proposal ⇄ revision → approved → c
 
 ### Docker
 
-`docker-compose.yml` поднимает PostgreSQL 15, backend, frontend (Nginx) и — отдельным
-профилем — бота. Nginx проксирует `/api` на `backend:8000`, SPA отдаётся с fallback
-на `index.html` для клиентского роутинга.
+`docker-compose.yml` поднимает PostgreSQL 15, backend, frontend (Nginx) и — отдельными
+профилями — Telegram- и VK-бота. Nginx проксирует `/api` на `backend:8000`, SPA отдаётся
+с fallback на `index.html` для клиентского роутинга.
+
+Для production на VPS есть `docker-compose.prod.yml`: Caddy завершает HTTPS,
+наружу открыты только 80/443, PostgreSQL и backend остаются во внутренней сети Docker.
+Инструкция — [deploy-regru.md](deploy-regru.md).
 
 ## 10. Ограничения и развитие
 

@@ -342,6 +342,20 @@ docker compose --profile bot up --build
 
 Остановка: `docker compose down`, удаление данных: `docker compose down -v`.
 
+### Production на VPS
+
+Для reg.ru и любого Ubuntu-сервера есть отдельный стек с Caddy, HTTPS и
+VK-ботом:
+
+```bash
+cp .env.example .env
+# заполните DOMAIN, POSTGRES_PASSWORD, SECRET_KEY, BOT_API_TOKEN,
+# ADMIN_PASSWORD, VK_GROUP_ID, VK_TOKEN и POLZA_API_KEY
+docker compose -f docker-compose.prod.yml --profile vk up -d --build
+```
+
+Подробная инструкция: [docs/deploy-regru.md](docs/deploy-regru.md).
+
 ## Демо-доступ
 
 | Роль | E-mail | Пароль |
@@ -447,6 +461,7 @@ cd backend
 - [docs/testing.md](docs/testing.md) — программа и результаты тестирования;
 - [docs/ai.md](docs/ai.md) — подключение Polza.ai, правила ответов и примеры диалогов;
 - [docs/vk.md](docs/vk.md) — VK-бот: Long Poll, настройка сообщества и ограничения;
+- [docs/deploy-regru.md](docs/deploy-regru.md) — production-развёртывание на VPS reg.ru;
 - [frontend/public/prototype/README.md](frontend/public/prototype/README.md) — как открыть интерактивный макет и пройти оба сценария;
 - [consultflow-wiki/](consultflow-wiki/) — продуктовые артефакты РГР (роли, состояние, развитие).
 
