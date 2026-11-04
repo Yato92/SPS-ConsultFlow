@@ -48,6 +48,7 @@ class DocumentType(str, Enum):
     PROPOSAL = "proposal"
     CONTRACT = "contract"
     ACT = "act"
+    PAYMENT = "payment"
 
 
 USER_ROLE_LABELS: dict[str, str] = {
@@ -98,6 +99,7 @@ DOCUMENT_LABELS: dict[str, str] = {
     DocumentType.PROPOSAL.value: "Коммерческое предложение",
     DocumentType.CONTRACT.value: "Договор",
     DocumentType.ACT.value: "Акт выполненных работ",
+    DocumentType.PAYMENT.value: "Чек об оплате",
 }
 
 # Разрешённые переходы статусов (жизненный цикл заказа).

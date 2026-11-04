@@ -16,6 +16,7 @@ DOC_PREFIX = {
     DocumentType.PROPOSAL.value: "КП",
     DocumentType.CONTRACT.value: "ДОГОВОР",
     DocumentType.ACT.value: "АКТ",
+    DocumentType.PAYMENT.value: "ЧЕК",
 }
 
 
@@ -98,6 +99,24 @@ def build_document(order: Order, doc_type: str) -> dict:
 ## 4. Условия
 Оплата производится в два этапа: 50 % — аванс, 50 % — после подписания акта.
 Предложение действительно 14 календарных дней.
+"""
+    elif doc_type == DocumentType.PAYMENT.value:
+        paid = format_money(order.paid_amount or order.amount)
+        title = f"Чек об оплате № {number}"
+        body = f"""# {title}
+
+**Заказчик:** {client_name}
+**Заказ:** {order.number} — {order.title}
+**Дата:** {created}
+
+## Платёж
+| Показатель | Значение |
+| --- | --- |
+| Сумма | {paid} |
+| Способ | Банковская карта |
+| Режим | Тестовый платёж, деньги не списываются |
+
+Оплата принята. Чек сформирован автоматически в учебном контуре ConsultFlow.
 """
     elif doc_type == DocumentType.CONTRACT.value:
         title = f"Договор возмездного оказания услуг № {number}"

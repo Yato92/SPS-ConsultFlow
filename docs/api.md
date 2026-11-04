@@ -361,6 +361,7 @@ Access-токен — JWT (HS256), срок 12 часов. Magic-link — JWT т
 | `POST` | `/prototype/orders/{id}/proposal` | сформировать и отправить КП |
 | `POST` | `/prototype/orders/{id}/sign` | подписать КП (имитация) |
 | `POST` | `/prototype/orders/{id}/remarks` | замечания клиента к КП |
+| `POST` | `/prototype/orders/{id}/pay` | тестовая оплата картой и чек |
 | `POST` | `/prototype/orders/{id}/contract` | сформировать договор |
 | `POST` | `/prototype/orders/{id}/start` | начать работы |
 | `POST` | `/prototype/orders/{id}/act` | сформировать акт |
@@ -380,6 +381,20 @@ Access-токен — JWT (HS256), срок 12 часов. Magic-link — JWT т
 ```
 
 Недопустимое действие возвращает `400` с текстом причины.
+
+Тестовая оплата:
+
+```json
+{
+  "card_number": "4111 1111 1111 1111",
+  "holder": "IVAN PETROV",
+  "expiry": "12/40",
+  "cvc": "123"
+}
+```
+
+Деньги не списываются; в базе сохраняются сумма, последние 4 цифры и документ
+`payment`. Карта `4000 0000 0000 0002` имитирует отказ банка.
 
 ---
 

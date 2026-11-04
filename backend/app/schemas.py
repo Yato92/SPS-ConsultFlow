@@ -397,6 +397,9 @@ class PrototypeOrderOut(BaseModel):
     work_started: bool = Field(alias="workStarted")
     act: bool
     act_confirmed: bool = Field(alias="actConfirmed")
+    paid: bool
+    paid_at: datetime | None = Field(default=None, alias="paidAt")
+    payment_last4: str | None = Field(default=None, alias="paymentLast4")
     practice_confirmed: bool = Field(alias="practiceConfirmed")
     history: list[PrototypeHistoryOut]
     documents: list[PrototypeDocumentOut]
@@ -440,3 +443,10 @@ class PrototypeRemarksIn(BaseModel):
 class PrototypePracticeIn(BaseModel):
     practice: Practice
     consultant: str = Field(min_length=2, max_length=255)
+
+
+class PrototypePaymentIn(BaseModel):
+    card_number: str = Field(min_length=16, max_length=23)
+    holder: str = Field(min_length=2, max_length=255)
+    expiry: str = Field(min_length=4, max_length=5)
+    cvc: str = Field(min_length=3, max_length=4)

@@ -15,6 +15,7 @@ from app.schemas import (
     PrototypeClarifyIn,
     PrototypeOrderCreate,
     PrototypeOrderOut,
+    PrototypePaymentIn,
     PrototypePracticeIn,
     PrototypeProposalIn,
     PrototypeRemarksIn,
@@ -171,5 +172,18 @@ def practice(
     try:
         order = service.get_order(db, order_id)
         return service.update_practice(db, order, payload)
+    except service.PrototypeError as exc:
+        raise _error(exc) from exc
+
+
+@router.post("/orders/{order_id}/pay", response_model=PrototypeOrderOut)
+def pay(
+    order_id: int,
+    payload: PrototypePaymentIn,
+    db: Session = Depends(get_db),
+) -> PrototypeOrderOut:
+    try:
+        order = service.get_order(db, order_id)
+        return service.pay_order(db, order, payload)
     except service.PrototypeError as exc:
         raise _error(exc) from exc

@@ -6,6 +6,7 @@
 отдельной таблице ``order_workflows``.
 """
 
+import re
 from datetime import date, timedelta
 
 from sqlalchemy import or_, select
@@ -19,7 +20,7 @@ from app.core.enums import (
     OrderStatus,
     Practice,
 )
-from app.core.utils import to_money, utcnow
+from app.core.utils import format_money, to_money, utcnow
 from app.models import Client, Order, OrderEvent, OrderWorkflow, User
 from app.schemas import (
     PrototypeAnswerIn,
@@ -29,6 +30,7 @@ from app.schemas import (
     PrototypeHistoryOut,
     PrototypeOrderCreate,
     PrototypeOrderOut,
+    PrototypePaymentIn,
     PrototypePracticeIn,
     PrototypeProposalIn,
     PrototypeRemarksIn,
@@ -164,6 +166,16 @@ def _document_list(order: Order, workflow: OrderWorkflow) -> list[PrototypeDocum
                     created_at=doc.created_at or utcnow(),
                 )
             )
+        elif doc.doc_type == DocumentType.PAYMENT.value:
+            result.append(
+                PrototypeDocumentOut(
+                    id=doc.id,
+                    type="payment",
+                    name="Чек об оплате.pdf",
+                    status=doc.status,
+                    created_at=doc.created_at or utcnow(),
+                )
+            )
     return result
 
 
@@ -224,6 +236,19 @@ def serialize_order(
             for doc in order.documents
         )
     )
+    payments = [
+        doc
+        for doc in order.documents
+        if doc.doc_type == DocumentType.PAYMENT.value and doc.status == "paid"
+    ]
+    payments.sort(key=lambda doc: doc.created_at or utcnow())
+    last_payment = payments[-1] if payments else None
+    amount = float(order.amount or 0)
+    paid = last_payment is not None or (
+        amount > 0 and float(order.paid_amount or 0) >= amount
+    )
+    paid_at = last_payment.payload.get("paid_at") if last_payment else None
+    payment_last4 = last_payment.payload.get("last4") if last_payment else None
 
     due = "—"
     if order.deadline:
@@ -266,6 +291,9 @@ def serialize_order(
         or workflow.work_started_at is not None,
         act=act,
         act_confirmed=act_confirmed,
+        paid=paid,
+        paid_at=paid_at,
+        payment_last4=payment_last4,
         practice_confirmed=workflow.practice_confirmed,
         history=_history(order),
         documents=_document_list(order, workflow),
@@ -681,6 +709,90 @@ def confirm_act(db: Session, order: Order) -> PrototypeOrderOut:
     return serialize_order(db, _load_order(db, order.id) or order)
 
 
+def pay_order(
+    db: Session, order: Order, payload: PrototypePaymentIn
+) -> PrototypeOrderOut:
+    workflow = ensure_workflow(db, order)
+    signed = (
+        workflow.signed_at is not None
+        or any(
+            doc.doc_type == DocumentType.PROPOSAL.value and doc.status == "signed"
+            for doc in order.documents
+        )
+        or order.status
+        in {
+            OrderStatus.APPROVED.value,
+            OrderStatus.CONTRACT.value,
+            OrderStatus.IN_PROGRESS.value,
+            OrderStatus.DONE.value,
+        }
+    )
+    if not signed:
+        raise PrototypeError("Сначала подпишите КП")
+
+    amount = to_money(order.amount or 0)
+    if amount <= 0:
+        raise PrototypeError("В заявке не указана стоимость")
+    already_paid = any(
+        doc.doc_type == DocumentType.PAYMENT.value and doc.status == "paid"
+        for doc in order.documents
+    ) or to_money(order.paid_amount or 0) >= amount
+    if already_paid:
+        raise PrototypeError("Заявка уже оплачена")
+
+    digits = re.sub(r"\D", "", payload.card_number)
+    if len(digits) != 16:
+        raise PrototypeError("Номер тестовой карты должен содержать 16 цифр")
+    if digits == "4000000000000002":
+        raise PrototypeError("Банк отклонил тестовую оплату")
+
+    expiry_match = re.fullmatch(r"(0[1-9]|1[0-2])/(\d{2})", payload.expiry.strip())
+    if not expiry_match:
+        raise PrototypeError("Срок действия укажите в формате ММ/ГГ")
+    month = int(expiry_match.group(1))
+    year = 2000 + int(expiry_match.group(2))
+    today = utcnow()
+    if (year, month) < (today.year, today.month):
+        raise PrototypeError("Срок действия карты уже истёк")
+    if not re.fullmatch(r"\d{3}", payload.cvc):
+        raise PrototypeError("CVC должен содержать 3 цифры")
+
+    paid_at = utcnow()
+    order.paid_amount = amount
+    order.updated_at = paid_at
+    document = create_document_record(
+        db,
+        order,
+        DocumentType.PAYMENT.value,
+        actor_type=ActorType.USER.value,
+        commit=False,
+    )
+    document.status = "paid"
+    document.payload = {
+        **(document.payload or {}),
+        "paid_at": paid_at.isoformat(),
+        "last4": digits[-4:],
+        "amount": format_money(amount),
+        "test": True,
+    }
+    db.add(
+        OrderEvent(
+            order_id=order.id,
+            from_status=order.status,
+            to_status=order.status,
+            actor_type=ActorType.USER.value,
+            comment=(
+                f"Тестовая оплата {format_money(amount)} "
+                f"— карта •••• {digits[-4:]}"
+            ),
+        )
+    )
+    notify_managers(db, order, "Клиент оплатил заявку (тестовый платёж)")
+    db.commit()
+    db.refresh(order)
+    return serialize_order(db, _load_order(db, order.id) or order)
+
+
 __all__ = [
     "DEMO_CLIENT_NAME",
     "DEMO_BOT_TELEGRAM_ID",
@@ -698,6 +810,7 @@ __all__ = [
     "get_order",
     "is_demo_order",
     "next_display_number",
+    "pay_order",
     "prototype_status",
     "request_clarification",
     "send_proposal",

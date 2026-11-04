@@ -66,6 +66,7 @@ export const DOC_TYPE_META: Record<string, { label: string; color: string }> = {
   proposal: { label: 'Коммерческое предложение', color: '#FAAD14' },
   contract: { label: 'Договор', color: '#13C2C2' },
   act: { label: 'Акт выполненных работ', color: '#52C41A' },
+  payment: { label: 'Чек об оплате', color: '#EB2F96' },
 };
 
 export const ROLE_LABELS: Record<string, string> = {

@@ -454,6 +454,7 @@ function renderDocsTab(request) {
       ${request.signed ? docCard('Подписанное КП.pdf', 'Подписано клиентом · демонстрационный документ', 'подписано') : ''}
       ${request.contract ? docCard('Договор.pdf', 'Договор на оказание услуг · демонстрационный документ') : ''}
       ${request.act ? docCard('Акт выполненных работ.pdf', 'Закрывающий документ · демонстрационный документ') : ''}
+      ${request.paid ? docCard('Чек об оплате.pdf', `Тестовая оплата${request.paymentLast4 ? ` · карта •••• ${esc(request.paymentLast4)}` : ''}`, 'оплачено') : ''}
     </section>` : ''}
 
   ${request.signed ? `
@@ -572,6 +573,7 @@ function renderClient() {
 
     ${renderClientClarification(request)}
     ${renderClientProposal(request)}
+    ${renderClientPayment(request)}
     ${renderClientAct(request)}
 
     <p class="client-hint" style="text-align:center;margin-top:18px!important">
@@ -681,6 +683,42 @@ function renderClientProposal(request) {
   </section>`;
 }
 
+function renderClientPayment(request) {
+  if (!request.signed) return '';
+
+  if (request.paid) {
+    const card = request.paymentLast4 ? ` · карта •••• ${esc(request.paymentLast4)}` : '';
+    return `
+    <section class="panel">
+      <div class="panel-head"><h2>Оплата</h2><span class="version">Оплачено</span></div>
+      ${docCard('Чек об оплате.pdf', `Тестовый платёж${card} · демонстрационный документ`, 'оплачено')}
+      <div class="notice notice-green" style="margin-bottom:0">
+        <b>Платёж принят</b>
+        <p>Это тестовая оплата: деньги не списываются. Чек сохранён в базе ConsultFlow.</p>
+      </div>
+    </section>`;
+  }
+
+  return `
+  <section class="panel">
+    <div class="panel-head"><h2>Оплата</h2><span class="version">Ожидает оплаты</span></div>
+    <div class="proposal-grid">
+      <div class="metric">
+        <div class="metric-label">К оплате</div>
+        <div class="metric-value">${money(request.cost)}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Способ</div>
+        <div class="metric-value small-value">Тестовая банковская карта</div>
+      </div>
+    </div>
+    <p class="client-hint" style="margin-top:0">Демонстрационный платёж: реальные деньги не списываются, данные карты не сохраняются.</p>
+    <div class="actions-row">
+      <button class="btn btn-primary" data-action="modal-pay">Оплатить тестовой картой</button>
+    </div>
+  </section>`;
+}
+
 function renderClientAct(request) {
   if (!request.act) return '';
   return `
@@ -775,6 +813,52 @@ function renderModal() {
           <button class="btn btn-secondary" data-action="close-modal">Отмена</button>
           <button class="btn btn-primary" data-action="confirm-sign">Подписать</button>
         </div>
+      </div>
+    </div>`;
+  }
+
+  if (state.modal === 'pay') {
+    const request = active();
+    root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pay-title">
+        <div class="modal-head">
+          <div>
+            <h3 id="pay-title">Тестовая оплата</h3>
+            <p>Заявка №${esc(request.number)} · к оплате ${money(request.cost)}</p>
+          </div>
+          <button class="modal-close" data-action="close-modal" aria-label="Закрыть">×</button>
+        </div>
+        <form id="payment-form">
+          <div class="modal-body">
+            <div class="notice notice-blue" style="margin-top:0">
+              <b>Демонстрационный режим</b>
+              <p>Реальные деньги не списываются. Используйте тестовую карту 4111 1111 1111 1111; данные карты не сохраняются.</p>
+            </div>
+            <div class="field">
+              <label for="card-number">Номер карты</label>
+              <input class="input" id="card-number" name="card_number" inputmode="numeric" value="4111 1111 1111 1111" required>
+            </div>
+            <div class="field">
+              <label for="card-holder">Владелец карты</label>
+              <input class="input" id="card-holder" name="holder" value="${esc(request.contact)}" required>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="card-expiry">Срок действия</label>
+                <input class="input" id="card-expiry" name="expiry" placeholder="ММ/ГГ" value="12/40" required>
+              </div>
+              <div class="field">
+                <label for="card-cvc">CVC</label>
+                <input class="input" id="card-cvc" name="cvc" inputmode="numeric" value="123" required>
+              </div>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-action="close-modal">Отмена</button>
+            <button type="submit" class="btn btn-primary">Оплатить ${money(request.cost)}</button>
+          </div>
+        </form>
       </div>
     </div>`;
   }
@@ -919,6 +1003,12 @@ async function handleAction(action, dataset) {
       renderModal();
       break;
 
+    case 'modal-pay':
+      state.modal = 'pay';
+      renderModal();
+      bindPaymentForm();
+      break;
+
     case 'confirm-sign': {
       if (!request) return;
       await orderAction(request, 'sign', undefined, 'КП подписано', { closeModal: true });
@@ -999,6 +1089,38 @@ function bindForm() {
       await load(created.id);
       render();
       toast('Заявка создана');
+    } catch (error) {
+      toast(error.message);
+      if (submit) submit.disabled = false;
+    }
+  });
+}
+
+function bindPaymentForm() {
+  const form = document.getElementById('payment-form');
+  if (!form) return;
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const request = active();
+    if (!request) return;
+    const data = new FormData(form);
+    const submit = form.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      const updated = await api(`${orderPath(request)}/pay`, {
+        method: 'POST',
+        body: {
+          card_number: String(data.get('card_number') || '').trim(),
+          holder: String(data.get('holder') || '').trim(),
+          expiry: String(data.get('expiry') || '').trim(),
+          cvc: String(data.get('cvc') || '').trim()
+        }
+      });
+      state.modal = null;
+      await load(updated.id);
+      render();
+      toast('Тестовая оплата прошла. Чек сохранён');
     } catch (error) {
       toast(error.message);
       if (submit) submit.disabled = false;

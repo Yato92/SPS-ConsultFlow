@@ -79,6 +79,45 @@ def test_full_prototype_lifecycle(client):
     assert signed.status_code == 200, signed.text
     assert signed.json()["signed"] is True
 
+    declined = client.post(
+        f"/api/prototype/orders/{order_id}/pay",
+        json={
+            "card_number": "4000 0000 0000 0002",
+            "holder": "TEST CLIENT",
+            "expiry": "12/40",
+            "cvc": "123",
+        },
+    )
+    assert declined.status_code == 400
+    assert "отклонил" in declined.json()["detail"]
+
+    payment = client.post(
+        f"/api/prototype/orders/{order_id}/pay",
+        json={
+            "card_number": "4111 1111 1111 1111",
+            "holder": "TEST CLIENT",
+            "expiry": "12/40",
+            "cvc": "123",
+        },
+    )
+    assert payment.status_code == 200, payment.text
+    assert payment.json()["paid"] is True
+    assert payment.json()["paymentLast4"] == "1111"
+    assert any(doc["type"] == "payment" for doc in payment.json()["documents"])
+    assert any("Тестовая оплата" in item["text"] for item in payment.json()["history"])
+
+    duplicate_payment = client.post(
+        f"/api/prototype/orders/{order_id}/pay",
+        json={
+            "card_number": "4111 1111 1111 1111",
+            "holder": "TEST CLIENT",
+            "expiry": "12/40",
+            "cvc": "123",
+        },
+    )
+    assert duplicate_payment.status_code == 400
+    assert "уже оплачена" in duplicate_payment.json()["detail"]
+
     contract = client.post(f"/api/prototype/orders/{order_id}/contract")
     assert contract.status_code == 200, contract.text
     assert contract.json()["contract"] is True
@@ -153,6 +192,18 @@ def test_invalid_action_returns_bad_request(client):
 
     contract = client.post(f"/api/prototype/orders/{order_id}/contract")
     assert contract.status_code == 400
+
+    payment = client.post(
+        f"/api/prototype/orders/{order_id}/pay",
+        json={
+            "card_number": "4111 1111 1111 1111",
+            "holder": "TEST CLIENT",
+            "expiry": "12/40",
+            "cvc": "123",
+        },
+    )
+    assert payment.status_code == 400
+    assert "КП" in payment.json()["detail"]
 
 
 def test_seed_idempotent(client):
