@@ -511,7 +511,13 @@ async def handle_message(
     lower = text.lower().strip()
     command = lower.split()[0] if lower.startswith("/") else ""
 
-    if command == "/start" or lower in {"start", "начать", "меню"}:
+    if command == "/start" or lower in {
+        "start",
+        "начать",
+        "меню",
+        "главное меню",
+        "🏠 главное меню",
+    }:
         _histories.pop(user_id, None)
         await show_menu(vk, api, user_id, profile)
         return
