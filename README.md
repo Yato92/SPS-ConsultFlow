@@ -464,7 +464,7 @@ cd backend
 - [docs/api.md](docs/api.md) — описание REST API и примеры запросов;
 - [docs/bpmn.md](docs/bpmn.md) — процесс «как есть / как должно быть», статусы и SLA;
 - [docs/testing.md](docs/testing.md) — программа и результаты тестирования;
-- [docs/ai.md](docs/ai.md) — подключение Polza.ai, правила ответов и примеры диалогов;
+- [docs/ai.md](docs/ai.md) — Polza.ai, ИИ-консультант и AI-разбор заявки (BPMN);
 - [docs/vk.md](docs/vk.md) — VK-бот: Long Poll, настройка сообщества и ограничения;
 - [docs/deploy-regru.md](docs/deploy-regru.md) — production-развёртывание на VPS reg.ru;
 - [frontend/public/prototype/README.md](frontend/public/prototype/README.md) — как открыть интерактивный макет и пройти оба сценария;
