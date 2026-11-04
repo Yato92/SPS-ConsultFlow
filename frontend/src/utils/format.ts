@@ -28,8 +28,8 @@ export const date = (value: string | null | undefined): string =>
 export const dateTime = (value: string | null | undefined): string =>
   value ? dayjs(value).format('DD.MM.YYYY HH:mm') : '—';
 
-export const percent = (value: number | null | undefined): string =>
-  `${Number(value ?? 0).toFixed(1)} %`;
+export const percent = (value: number | null | undefined, digits = 0): string =>
+  `${(Number(value ?? 0) * 100).toFixed(digits)} %`;
 
 export const initials = (name: string): string =>
   name
