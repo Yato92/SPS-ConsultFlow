@@ -1,3 +1,36 @@
+# Python
 .venv/
+.venv-backend/
+.uv-python/
+.uv-cache/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+pytest-cache-files-*/
+.ruff_cache/
+
+# Окружение и секреты
+.env
+.env.local
+*.local
+
+# Базы данных
+*.db
+*.sqlite
+*.sqlite3
+
+# Node / фронтенд
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+
+# Кэши пакетных менеджеров
+.pnpm-store/
+.npm-cache/
+.pnpm-debug.log*
+
+# Временные файлы разработки
+.tmp-*
+*.tmp
