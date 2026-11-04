@@ -72,12 +72,25 @@ async def send(
 ) -> None:
     chunks = split_message(text, 4000)
     for index, chunk in enumerate(chunks):
-        await vk.send_message(
-            user_id,
-            chunk,
-            keyboard=keyboard if index == len(chunks) - 1 else None,
-            dont_parse_links=False,
-        )
+        try:
+            await vk.send_message(
+                user_id,
+                chunk,
+                keyboard=keyboard if index == len(chunks) - 1 else None,
+                dont_parse_links=False,
+            )
+        except VKError as exc:
+            if exc.code != 912 or not keyboard:
+                raise
+            # У сообщества не включён режим чат-бота: VK не принимает клавиатуру.
+            logger.warning("VK chat bot feature is disabled; falling back to text")
+            note = (
+                "\n\n⚠️ Кнопки пока недоступны. Включите «Чат-бот» "
+                "в настройках сообщества, а пока пишите команды текстом."
+                if index == 0
+                else ""
+            )
+            await vk.send_message(user_id, chunk + note, dont_parse_links=False)
 
 
 async def ensure_profile(
