@@ -80,9 +80,10 @@ class VKAPI:
             raise VKError("VK не вернул параметры Long Poll.")
         server = str(response.get("server") or "")
         key = str(response.get("key") or "")
-        ts = int(response.get("ts") or 0)
-        if not server or not key or not ts:
+        raw_ts = response.get("ts")
+        if not server or not key or raw_ts is None:
             raise VKError("Long Poll не настроен для сообщества.")
+        ts = int(raw_ts)
         return server, key, ts
 
     async def poll(self, server: str, key: str, ts: int, wait: int = 25) -> dict:
