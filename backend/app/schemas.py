@@ -276,6 +276,7 @@ class BotOrderIn(BaseModel):
     client_name: str | None = None
     phone: str | None = None
     email: str | None = None
+    kp: dict[str, Any] | None = None
 
 
 class BotOrderOut(BaseModel):
@@ -310,6 +311,66 @@ class BotOrderDetailOut(BotOrderShort):
     sla_due_at: datetime | None = None
     is_overdue: bool = False
     events: list[OrderEventOut] = []
+
+
+class BotAIIntakeIn(BaseModel):
+    telegram_id: int
+    text: str = Field(min_length=5, max_length=5000)
+    client_name: str | None = None
+    company: str | None = None
+
+
+class BotAIDuplicateOut(BaseModel):
+    order_id: int
+    number: str
+    title: str
+    status: str
+    status_label: str
+    created_at: datetime
+    similarity: float
+    reason: str
+
+
+class BotAITeamMemberOut(BaseModel):
+    id: int
+    full_name: str
+    role: str
+    role_label: str
+
+
+class BotKPDraftOut(BaseModel):
+    title: str
+    text: str
+    valid_until: date
+    amount: float
+    sla_hours: int
+
+
+class BotAIIntakeOut(BaseModel):
+    source: str
+    title: str
+    description: str
+    practice: str
+    practice_label: str
+    hours: float
+    complexity: str
+    complexity_label: str
+    company: str | None = None
+    contact_name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    deadline: date | None = None
+    budget: float | None = None
+    summary: str
+    missing_fields: list[str] = []
+    confidence: float
+    duplicates: list[BotAIDuplicateOut] = []
+    team: list[BotAITeamMemberOut] = []
+    estimate: BotEstimateOut
+    sla_due_at: datetime
+    sla_risk: str
+    sla_risk_reason: str
+    kp: BotKPDraftOut
 
 
 class BotStatusIn(BaseModel):

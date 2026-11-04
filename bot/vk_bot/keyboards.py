@@ -30,14 +30,25 @@ def _keyboard(rows: list[list[dict]], *, one_time: bool = False) -> str:
 def main_menu(is_manager: bool = False) -> str:
     rows: list[list[dict]] = [
         [_button("📝 Оставить заявку", COLOR)],
+        [_button("✨ AI-заявка", COLOR)],
         [_button("📋 Мои заявки"), _button("🤖 Спросить ИИ")],
         [_button("💰 Прайс-лист"), _button("🖥 Кабинет")],
     ]
     if is_manager:
         rows.insert(1, [_button("📥 Очередь заявок", COLOR)])
-        rows.insert(3, [_button("🖥 Дашборд")])
+        rows.insert(4, [_button("🖥 Дашборд")])
     rows.append([_button("❓ Помощь")])
     return _keyboard(rows)
+
+
+def ai_confirm() -> str:
+    return _keyboard(
+        [
+            [_button("✅ Создать заявку", COLOR)],
+            [_button("Отмена", NEGATIVE)],
+        ],
+        one_time=True,
+    )
 
 
 def practices() -> str:

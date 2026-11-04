@@ -33,6 +33,13 @@ services:
       PROTOTYPE_DEMO: "true"
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@consultflow.ru}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin12345}
+      AI_ENABLED: ${AI_ENABLED:-true}
+      POLZA_API_KEY: ${POLZA_API_KEY:-}
+      POLZA_BASE_URL: ${POLZA_BASE_URL:-https://polza.ai/api/v1}
+      AI_MODEL: ${AI_MODEL:-deepseek/deepseek-v4.1-flash-1017}
+      AI_TEMPERATURE: ${AI_TEMPERATURE:-0.4}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-1200}
+      AI_TIMEOUT: ${AI_TIMEOUT:-90}
     depends_on:
       db:
         condition: service_healthy

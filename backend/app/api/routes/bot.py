@@ -20,6 +20,8 @@ from app.core.utils import utcnow
 from app.db.session import get_db
 from app.models import BotUser, Client, Notification, Order, User
 from app.schemas import (
+    BotAIIntakeIn,
+    BotAIIntakeOut,
     BotEstimateOut,
     BotLinkOut,
     BotOrderDetailOut,
@@ -35,7 +37,9 @@ from app.schemas import (
     NotificationOut,
     OrderEventOut,
 )
+from app.services.ai_intake import analyze_intake
 from app.services.analytics import build_dashboard
+from app.services.documents import create_ai_proposal
 from app.services.orders import change_status, create_order
 from app.services.pricing import estimate, pricing_info
 
@@ -98,6 +102,21 @@ def register_user(payload: BotUserIn, db: Session = Depends(get_db)) -> BotRegis
     )
 
 
+@router.post("/ai/intake", response_model=BotAIIntakeOut)
+def ai_intake(payload: BotAIIntakeIn, db: Session = Depends(get_db)) -> BotAIIntakeOut:
+    """ИИ-ветка BPMN: извлечение, дубликаты, практика, команда, цена, SLA и КП."""
+    bot_user = get_bot_user(db, payload.telegram_id)
+    return BotAIIntakeOut.model_validate(
+        analyze_intake(
+            db,
+            telegram_id=payload.telegram_id,
+            text=payload.text,
+            client_name=payload.client_name or bot_user.full_name,
+            company=payload.company,
+        )
+    )
+
+
 @router.post("/orders", response_model=BotOrderOut, status_code=status.HTTP_201_CREATED)
 def create_bot_order(payload: BotOrderIn, db: Session = Depends(get_db)) -> BotOrderOut:
     bot_user = get_bot_user(db, payload.telegram_id)
@@ -129,6 +148,8 @@ def create_bot_order(payload: BotOrderIn, db: Session = Depends(get_db)) -> BotO
             User.is_active.is_(True), User.role == UserRole.MANAGER.value
         )
     )
+    is_vk = payload.telegram_id < 0
+    source = "vk" if is_vk else "telegram"
 
     order = create_order(
         db,
@@ -138,12 +159,22 @@ def create_bot_order(payload: BotOrderIn, db: Session = Depends(get_db)) -> BotO
         description=payload.description,
         manager_id=manager.id if manager else None,
         amount=calc["amount"],
-        source="telegram",
+        source=source,
         bot_user=bot_user,
         actor_type=ActorType.BOT.value,
         actor_id=bot_user.id,
-        comment="Заявка создана через Telegram-бота",
+        comment=(
+            "Заявка создана через VK-бота (ИИ-разбор)"
+            if is_vk and payload.kp
+            else "Заявка создана через VK-бота"
+            if is_vk
+            else "Заявка создана через Telegram-бота"
+        ),
     )
+
+    if payload.kp:
+        create_ai_proposal(db, order, payload.kp)
+        db.commit()
 
     return BotOrderOut(
         id=order.id,

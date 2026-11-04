@@ -61,6 +61,25 @@ class ConsultFlowAPI:
     async def create_order(self, **payload: Any) -> dict:
         return await self._call("POST", "/api/bot/orders", json=payload)
 
+    async def ai_intake(
+        self,
+        telegram_id: int,
+        text: str,
+        *,
+        client_name: str | None = None,
+        company: str | None = None,
+    ) -> dict:
+        return await self._call(
+            "POST",
+            "/api/bot/ai/intake",
+            json={
+                "telegram_id": telegram_id,
+                "text": text,
+                "client_name": client_name,
+                "company": company,
+            },
+        )
+
     async def my_orders(self, telegram_id: int, limit: int = 10) -> list[dict]:
         return await self._call(
             "GET", "/api/bot/orders", params={"telegram_id": telegram_id, "limit": limit}

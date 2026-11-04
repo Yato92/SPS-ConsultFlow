@@ -18,6 +18,9 @@ os.environ["MANAGER_TELEGRAM_IDS"] = "700000002"
 os.environ["SECRET_KEY"] = "test-secret-key-at-least-32-bytes-long"
 os.environ["ADMIN_EMAIL"] = "admin@consultflow.ru"
 os.environ["ADMIN_PASSWORD"] = "admin12345"
+# Тесты не должны ходить во внешний ИИ и зависеть от ключа из корневого .env.
+os.environ["POLZA_API_KEY"] = ""
+os.environ["AI_ENABLED"] = "false"
 
 
 @pytest.fixture(scope="session")

@@ -2,6 +2,8 @@
 
 from datetime import datetime
 
+from sqlalchemy.orm import Session
+
 from app.core.enums import (
     PRACTICE_LABELS,
     DocumentType,
@@ -9,7 +11,7 @@ from app.core.enums import (
     STATUS_LABELS,
 )
 from app.core.utils import format_money, utcnow
-from app.models import Order
+from app.models import Document, Order
 
 DOC_PREFIX = {
     DocumentType.REQUEST.value: "ЗАЯВКА",
@@ -184,3 +186,27 @@ def document_for_status(order: Order, status: str) -> str | None:
         OrderStatus.DONE.value: DocumentType.ACT.value,
     }
     return mapping.get(status)
+
+
+def create_ai_proposal(db: Session, order: Order, kp: dict) -> Document:
+    """Сохраняет лист КП, подготовленный ИИ при приёме заявки."""
+    payload = build_document(order, DocumentType.PROPOSAL.value)
+    text = str(kp.get("text") or "").strip()
+    if text:
+        payload["body"] = text
+    payload["meta"] = {
+        **payload.get("meta", {}),
+        "source": "ai",
+        "valid_until": kp.get("valid_until"),
+        "sla_hours": kp.get("sla_hours"),
+    }
+    document = Document(
+        order_id=order.id,
+        doc_type=DocumentType.PROPOSAL.value,
+        number=payload["number"],
+        status="draft",
+        payload=payload,
+    )
+    db.add(document)
+    db.flush()
+    return document

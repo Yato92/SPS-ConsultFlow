@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     bot_api_token: str = "dev-bot-token-change-me"
     manager_telegram_ids: str = ""
 
+    # ИИ-разбор заявок (BPMN: извлечение данных, классификация, КП).
+    ai_enabled: bool = True
+    polza_api_key: str = ""
+    polza_base_url: str = "https://polza.ai/api/v1"
+    ai_model: str = "deepseek/deepseek-v4.1-flash-1017"
+    ai_temperature: float = 0.2
+    ai_max_tokens: int = 900
+    ai_timeout: float = 60.0
+
     admin_email: str = "admin@consultflow.ru"
     admin_password: str = "admin12345"
 
@@ -54,6 +63,10 @@ class Settings(BaseSettings):
     @property
     def is_sqlite(self) -> bool:
         return self.database_url.startswith("sqlite")
+
+    @property
+    def is_ai_configured(self) -> bool:
+        return self.ai_enabled and bool(self.polza_api_key.strip())
 
 
 @lru_cache

@@ -154,10 +154,118 @@ def help_text(is_manager: bool) -> str:
         "3. Опишите задачу одним сообщением.\n"
         "4. Укажите объём в часах и сложность.\n"
         "5. Подтвердите заявку — бот покажет стоимость и срок ответа.\n\n"
+        "✨ «AI-заявка» — опишите задачу свободным текстом: ИИ сам извлечёт "
+        "данные, определит практику, проверит дубликаты, оценит стоимость, "
+        "подберёт команду и подготовит черновик КП.\n\n"
         "Статус смотрите в «Мои заявки». Можно просто написать вопрос — "
         "ответит ИИ-консультант.\n\n"
         "Команды: /start — меню, /cancel — отмена, /id — ваш VK ID."
     )
+
+
+MISSING_LABELS = {
+    "hours": "часы",
+    "company": "компания",
+    "contact_name": "контактное лицо",
+    "contact": "телефон или email",
+    "deadline": "срок",
+    "phone": "телефон",
+    "email": "email",
+}
+RISK_LABELS = {"low": "низкий", "medium": "средний", "high": "высокий"}
+
+
+def analysis_text(data: dict[str, Any]) -> str:
+    estimate = data.get("estimate") or {}
+    kp = data.get("kp") or {}
+    team = ", ".join(
+        f"{item.get('full_name')} ({item.get('role_label')})"
+        for item in data.get("team") or []
+    ) or "менеджер ConsultFlow"
+    lines = [
+        "🤖 AI разобрал заявку",
+        "",
+        f"Направление: {data.get('practice_label')}",
+        f"Задача: {data.get('title')}",
+        f"Часы: {float(data.get('hours') or 0):g} · {data.get('complexity_label')}",
+        f"Стоимость: {money(estimate.get('amount', 0))}",
+        f"SLA: {estimate.get('sla_hours')} ч, риск {RISK_LABELS.get(data.get('sla_risk'), data.get('sla_risk'))}",
+        f"Команда: {team}",
+    ]
+    if data.get("company"):
+        lines.append(f"Компания: {data['company']}")
+    if data.get("contact_name"):
+        lines.append(f"Контакт: {data['contact_name']}")
+    if data.get("phone"):
+        lines.append(f"Телефон: {data['phone']}")
+    if data.get("email"):
+        lines.append(f"Email: {data['email']}")
+    if data.get("deadline"):
+        lines.append(f"Срок: {data['deadline']}")
+    missing = [
+        MISSING_LABELS.get(item, item)
+        for item in data.get("missing_fields") or []
+    ]
+    if missing:
+        lines.append(f"Уточнить: {', '.join(missing)}")
+    duplicates = data.get("duplicates") or []
+    if duplicates:
+        lines.extend(["", "⚠️ Похожие заявки:"])
+        for item in duplicates[:3]:
+            lines.append(
+                f"№{item.get('number')} — {item.get('title')} "
+                f"({round(float(item.get('similarity', 0)) * 100)}%)"
+            )
+    else:
+        lines.extend(["", "✅ Дубликатов не найдено."])
+    lines.extend(["", f"📄 КП: {kp.get('title') or 'черновик подготовлен'}"])
+    if kp.get("text"):
+        lines.extend(["", kp["text"]])
+    lines.extend(["", "Создать заявку с этими данными?"])
+    return "\n".join(lines)
+
+
+async def start_ai_intake(vk: VKAPI, user_id: int) -> None:
+    session = _session(user_id)
+    session.update({"step": "ai_request", "data": {}})
+    await send(
+        vk,
+        user_id,
+        "✨ AI-заявка\n\n"
+        "Опишите задачу одним сообщением: что нужно сделать, для какой компании, "
+        "какие сроки и ориентир по бюджету.\n\n"
+        "ИИ сам определит направление, оценит часы и стоимость, подберёт команду, "
+        "проверит базу на дубликаты и подготовит черновик КП.",
+        keyboard=keyboards.back(),
+    )
+
+
+async def analyze_ai_intake(
+    vk: VKAPI,
+    api: ConsultFlowAPI,
+    user_id: int,
+    profile: dict[str, Any],
+    text: str,
+) -> None:
+    await vk.set_typing(user_id)
+    try:
+        analysis = await api.ai_intake(
+            -user_id,
+            text,
+            client_name=profile.get("vk_name"),
+        )
+    except APIError as exc:
+        await send(
+            vk,
+            user_id,
+            f"⚠️ {exc.message}\n\nПопробуйте описать задачу ещё раз.",
+            keyboard=keyboards.back(),
+        )
+        return
+
+    session = _session(user_id)
+    session.update({"step": "ai_confirm", "data": {"analysis": analysis, "text": text}})
+    await send(vk, user_id, analysis_text(analysis), keyboard=keyboards.ai_confirm())
 
 
 def pricing_text(payload: dict[str, Any]) -> str:
@@ -302,6 +410,7 @@ async def create_order(
             hours=float(data["hours"]),
             complexity=data["complexity"],
             client_name=profile.get("vk_name") or "Клиент ВКонтакте",
+            kp=data.get("kp"),
         )
     except (APIError, KeyError, ValueError) as exc:
         message = getattr(exc, "message", "Проверьте данные заявки.")
@@ -319,6 +428,8 @@ async def create_order(
         f"× {estimate.get('multiplier', 1)}\n\n"
         "Менеджер получил уведомление. Статус — в «Мои заявки»."
     )
+    if data.get("kp"):
+        text += "\n\n📄 Черновик КП сохранён в карточке заявки."
     await send(vk, user_id, text, keyboard=keyboards.main_menu(bool(profile.get("is_manager"))))
 
 
@@ -419,6 +530,47 @@ async def handle_order_step(
             user_id,
             "Ок, заявка отменена.",
             keyboard=keyboards.main_menu(bool(profile.get("is_manager"))),
+        )
+        return True
+
+    if step == "ai_request":
+        if len(text) < 5:
+            await send(vk, user_id, "Слишком коротко. Опишите задачу хотя бы одним предложением.")
+            return True
+        await analyze_ai_intake(vk, api, user_id, profile, text)
+        return True
+
+    if step == "ai_confirm":
+        choice = lower.lstrip("✅✔️ ").strip()
+        if choice.startswith(("создать", "подтверд")) or choice in {"да", "yes", "ок", "ok"}:
+            analysis = data.get("analysis") or {}
+            data.update(
+                {
+                    "practice": analysis.get("practice"),
+                    "practice_label": analysis.get("practice_label"),
+                    "title": analysis.get("title"),
+                    "description": analysis.get("description"),
+                    "hours": analysis.get("hours"),
+                    "complexity": analysis.get("complexity"),
+                    "kp": analysis.get("kp"),
+                }
+            )
+            await create_order(vk, api, user_id, profile)
+            return True
+        if lower.startswith("отмен"):
+            _reset(user_id)
+            await send(
+                vk,
+                user_id,
+                "Ок, заявка не создана.",
+                keyboard=keyboards.main_menu(bool(profile.get("is_manager"))),
+            )
+            return True
+        await send(
+            vk,
+            user_id,
+            "Нажмите «Создать заявку» или «Отмена».",
+            keyboard=keyboards.ai_confirm(),
         )
         return True
 
@@ -564,6 +716,9 @@ async def handle_message(
         if handled:
             return
 
+    if "ai-заявка" in lower or "ии-заявка" in lower:
+        await start_ai_intake(vk, user_id)
+        return
     if "оставить заявку" in lower or lower in {"заявка", "новая заявка"}:
         await start_order(vk, user_id)
         return
