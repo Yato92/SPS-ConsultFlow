@@ -184,6 +184,9 @@ ConsultFlow-Lab/
 Требования: **Python 3.12+**, **Node.js 20+** и npm. Telegram-токен для локального запуска не обязателен:
 без него поднимаются backend и дашборд, а бот запускается после добавления токена.
 
+Если нужно перенести проект на другой ноутбук и запустить без Docker:
+[docs/local-run.md](docs/local-run.md).
+
 ### Самый простой запуск на Windows
 
 Если зависимости уже установлены, дважды щёлкните
@@ -475,6 +478,7 @@ cd backend
 - [docs/api.md](docs/api.md) — описание REST API и примеры запросов;
 - [docs/bpmn.md](docs/bpmn.md) — процесс «как есть / как должно быть», статусы и SLA;
 - [docs/testing.md](docs/testing.md) — программа и результаты тестирования;
+- [docs/local-run.md](docs/local-run.md) — перенос и локальный запуск на другом ноутбуке;
 - [docs/ai.md](docs/ai.md) — Polza.ai, ИИ-консультант и AI-разбор заявки (BPMN);
 - [docs/vk.md](docs/vk.md) — VK-бот: Long Poll, настройка сообщества и ограничения;
 - [docs/deploy-regru.md](docs/deploy-regru.md) — production-развёртывание на VPS reg.ru;
