@@ -34,3 +34,4 @@ npm-debug.log*
 # Временные файлы разработки
 .tmp-*
 *.tmp
+.vk_bot.lock

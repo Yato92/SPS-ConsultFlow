@@ -67,7 +67,7 @@ npm run build
 | `test_date_filter` | фильтр периода сужает выборку |
 | `test_pricing_endpoint` | ставки, SLA и коэффициенты отдаются корректно |
 
-### 3.4 Telegram-бот (`tests/test_bot.py`, 11 тестов)
+### 3.4 Telegram-бот (`tests/test_bot.py`, 13 тестов)
 
 | Тест | Проверка |
 | --- | --- |
@@ -82,6 +82,8 @@ npm run build
 | `test_manager_stats_and_link` | статистика и magic-link |
 | `test_notifications_outbox` | уведомления создаются и подтверждаются |
 | `test_bot_pricing` | прайс доступен боту |
+| `test_duplicate_order_from_bot_is_not_created_twice` | повторное нажатие/событие не создаёт дубль |
+| `test_client_link_opens_personal_portal` | ссылка из бота открывает только заявки этого клиента |
 
 ### 3.5 Расчёты (`tests/test_pricing.py`, 4 теста)
 
@@ -111,14 +113,14 @@ npm run build
 | `test_ai_intake_finds_duplicate_for_same_client` | fuzzy-поиск дубликата по заявкам того же клиента |
 | `test_create_order_with_ai_kp_document` | сохранение листа КП как `documents.doc_type = "proposal"` |
 
-**Итого: 43 автоматических теста, все проходят.**
+**Итого: 45 автоматических тестов, все проходят.**
 
 ## 4. Результаты
 
 ```
 $ cd backend && python -m pytest
 ...........................................                              [100%]
-43 passed
+45 passed
 ```
 
 Проверка фронтенда:

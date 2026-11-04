@@ -193,3 +193,34 @@ export interface TokenResponse {
   token_type: string;
   user: User;
 }
+
+export interface ClientPortalDocument {
+  id: number;
+  type: string;
+  name: string;
+  status: string;
+  created_at: string;
+}
+
+export interface ClientPortalOrder {
+  id: number;
+  number: string;
+  title: string;
+  description: string | null;
+  status: string;
+  status_label: string;
+  practice: string;
+  practice_label: string;
+  amount: number;
+  paid_amount: number;
+  created_at: string;
+  sla_due_at: string | null;
+  is_overdue: boolean;
+  documents: ClientPortalDocument[];
+}
+
+export interface ClientPortal {
+  client_name: string;
+  contact_person: string | null;
+  orders: ClientPortalOrder[];
+}

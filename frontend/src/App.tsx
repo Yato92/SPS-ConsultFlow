@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ClientsPage } from './pages/ClientsPage';
+import { ClientPortalPage } from './pages/ClientPortalPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { MagicPage } from './pages/MagicPage';
@@ -14,6 +15,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/magic" element={<MagicPage />} />
+      <Route path="/client" element={<ClientPortalPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />

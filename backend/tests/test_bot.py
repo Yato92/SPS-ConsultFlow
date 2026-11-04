@@ -1,6 +1,71 @@
 """Интеграция Telegram-бота и API."""
 
+from urllib.parse import parse_qs, urlparse
+
 CLIENT_TG = 555000111
+PORTAL_TG = 555000222
+
+
+def test_duplicate_order_from_bot_is_not_created_twice(client, bot_headers):
+    client.post(
+        "/api/bot/users",
+        headers=bot_headers,
+        json={"telegram_id": PORTAL_TG, "full_name": "Клиент Кабинета"},
+    )
+    payload = {
+        "telegram_id": PORTAL_TG,
+        "practice": "finance",
+        "title": "Повторная заявка из бота",
+        "description": "Нужно проверить, что двойное нажатие не создаёт дубль",
+        "hours": 8,
+        "complexity": "basic",
+    }
+    first = client.post("/api/bot/orders", headers=bot_headers, json=payload)
+    second = client.post("/api/bot/orders", headers=bot_headers, json=payload)
+    assert first.status_code == 201, first.text
+    assert second.status_code == 201, second.text
+    assert first.json()["id"] == second.json()["id"]
+
+
+def test_client_link_opens_personal_portal(client, bot_headers):
+    client.post(
+        "/api/bot/users",
+        headers=bot_headers,
+        json={"telegram_id": PORTAL_TG, "full_name": "Клиент Кабинета"},
+    )
+    created = client.post(
+        "/api/bot/orders",
+        headers=bot_headers,
+        json={
+            "telegram_id": PORTAL_TG,
+            "practice": "legal",
+            "title": "Заявка для личного кабинета",
+            "description": "Проверка персональной ссылки",
+            "hours": 12,
+            "complexity": "standard",
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    link = client.post(
+        "/api/bot/client-link",
+        headers=bot_headers,
+        json={"telegram_id": PORTAL_TG},
+    )
+    assert link.status_code == 200, link.text
+    token = parse_qs(urlparse(link.json()["url"]).query)["token"][0]
+
+    portal = client.get("/api/client/portal", params={"token": token})
+    assert portal.status_code == 200, portal.text
+    payload = portal.json()
+    assert payload["client_name"] == "Клиент Кабинета"
+    numbers = [item["number"] for item in payload["orders"]]
+    assert created.json()["number"] in numbers
+    assert all(item.startswith("CF-") for item in numbers)
+
+    invalid = client.get("/api/client/portal", params={"token": "invalid-token"})
+    assert invalid.status_code == 401
+
 
 
 def test_bot_token_required(client):

@@ -1,5 +1,7 @@
 """API для Telegram-бота ConsultFlow."""
 
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
@@ -22,6 +24,7 @@ from app.models import BotUser, Client, Notification, Order, User
 from app.schemas import (
     BotAIIntakeIn,
     BotAIIntakeOut,
+    BotClientLinkIn,
     BotEstimateOut,
     BotLinkOut,
     BotOrderDetailOut,
@@ -39,6 +42,7 @@ from app.schemas import (
 )
 from app.services.ai_intake import analyze_intake
 from app.services.analytics import build_dashboard
+from app.services.client_portal import build_client_url
 from app.services.documents import create_ai_proposal
 from app.services.orders import change_status, create_order
 from app.services.pricing import estimate, pricing_info
@@ -73,6 +77,11 @@ def register_user(payload: BotUserIn, db: Session = Depends(get_db)) -> BotRegis
         bot_user.email = payload.email
 
     is_manager = payload.telegram_id in settings.manager_ids
+    if (
+        payload.telegram_id < 0
+        and abs(payload.telegram_id) in settings.manager_vk_id_set
+    ):
+        is_manager = True
     if bot_user.role == BotRole.MANAGER.value:
         is_manager = True
 
@@ -143,6 +152,42 @@ def create_bot_order(payload: BotOrderIn, db: Session = Depends(get_db)) -> BotO
             client.phone = payload.phone
 
     calc = estimate(payload.practice.value, payload.hours, payload.complexity)
+
+    # Защита от двойного нажатия/двух запущенных экземпляров бота: одинаковую
+    # заявку от того же клиента в течение двух минут не создаём повторно.
+    duplicate = db.scalar(
+        select(Order)
+        .where(
+            Order.client_id == client.id,
+            Order.title == payload.title,
+            Order.description == payload.description,
+            Order.created_at >= utcnow() - timedelta(minutes=2),
+        )
+        .order_by(Order.id.desc())
+    )
+    if duplicate is not None:
+        return BotOrderOut(
+            id=duplicate.id,
+            number=duplicate.number,
+            title=duplicate.title,
+            status=duplicate.status,
+            status_label=STATUS_LABELS.get(duplicate.status, duplicate.status),
+            practice=duplicate.practice,
+            practice_label=PRACTICE_LABELS.get(
+                duplicate.practice, duplicate.practice
+            ),
+            amount=float(duplicate.amount),
+            created_at=duplicate.created_at,
+            sla_due_at=duplicate.sla_due_at,
+            estimate=BotEstimateOut(
+                rate=calc["rate"],
+                hours=calc["hours"],
+                multiplier=calc["multiplier"],
+                amount=calc["amount"],
+                sla_hours=calc["sla_hours"],
+            ),
+        )
+
     manager = db.scalar(
         select(User).where(
             User.is_active.is_(True), User.role == UserRole.MANAGER.value
@@ -386,6 +431,19 @@ def dashboard_link(payload: BotUserIn, db: Session = Depends(get_db)) -> BotLink
     token = create_magic_token(bot_user.user_id)
     url = f"{settings.frontend_url.rstrip('/')}/magic?token={token}"
     return BotLinkOut(url=url, expires_in_minutes=settings.magic_link_expire_minutes)
+
+
+@router.post("/client-link", response_model=BotLinkOut)
+def client_link(payload: BotClientLinkIn, db: Session = Depends(get_db)) -> BotLinkOut:
+    """Ссылка клиента на его личный кабинет (только свои заявки)."""
+    client = db.scalar(select(Client).where(Client.telegram_id == payload.telegram_id))
+    if client is None:
+        raise HTTPException(
+            status_code=404,
+            detail="У вас пока нет заявок. Сначала оставьте заявку в боте.",
+        )
+    url, expires = build_client_url(client.id)
+    return BotLinkOut(url=url, expires_in_minutes=expires)
 
 
 @router.get("/notifications", response_model=list[NotificationOut])

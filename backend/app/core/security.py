@@ -12,6 +12,7 @@ password_hash = PasswordHash.recommended()
 
 TOKEN_ACCESS = "access"
 TOKEN_MAGIC = "magic"
+TOKEN_CLIENT = "client"
 
 
 def hash_password(password: str) -> str:
@@ -54,6 +55,15 @@ def create_magic_token(user_id: int) -> str:
         str(user_id),
         TOKEN_MAGIC,
         settings.magic_link_expire_minutes,
+    )
+
+
+def create_client_token(client_id: int) -> str:
+    settings = get_settings()
+    return _create_token(
+        str(client_id),
+        TOKEN_CLIENT,
+        settings.client_link_expire_minutes,
     )
 
 

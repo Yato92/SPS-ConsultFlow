@@ -5,9 +5,16 @@ from __future__ import annotations
 import asyncio
 import html
 import logging
+import os
 import re
 from collections import deque
+from pathlib import Path
 from typing import Any
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 from consultflow_bot.ai import AIError, PolzaClient, build_system_prompt, split_message
 from consultflow_bot.api import APIError, ConsultFlowAPI
@@ -34,6 +41,49 @@ COMPLEXITY = {
 _profiles: dict[int, dict[str, Any]] = {}
 _sessions: dict[int, dict[str, Any]] = {}
 _histories: dict[int, deque[dict[str, str]]] = {}
+_seen_messages: deque[tuple[int, int]] = deque(maxlen=2000)
+_seen_message_set: set[tuple[int, int]] = set()
+_lock_handle: Any = None
+
+
+def acquire_instance_lock() -> None:
+    """Не дать запустить второй VK-бот: иначе он дублирует сообщения и заявки."""
+    global _lock_handle
+    lock_path = Path(__file__).resolve().parents[2] / ".vk_bot.lock"
+    try:
+        _lock_handle = lock_path.open("a+b")
+        _lock_handle.seek(0, os.SEEK_END)
+        if _lock_handle.tell() == 0:
+            _lock_handle.write(b" ")
+            _lock_handle.flush()
+        _lock_handle.seek(0)
+        if os.name == "nt":
+            msvcrt.locking(_lock_handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            fcntl.flock(_lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        logger.error(
+            "VK-бот уже запущен в другом окне. Закройте его и запустите один экземпляр."
+        )
+        raise SystemExit(1) from None
+
+
+def _is_duplicate_message(message: dict[str, Any]) -> bool:
+    """VK иногда повторяет событие после переподключения Long Poll."""
+    try:
+        key = (int(message.get("from_id") or 0), int(message.get("id") or 0))
+    except (TypeError, ValueError):
+        return False
+    if key[1] <= 0:
+        return False
+    if key in _seen_message_set:
+        return True
+    if len(_seen_messages) == _seen_messages.maxlen:
+        oldest = _seen_messages[0]
+        _seen_message_set.discard(oldest)
+    _seen_messages.append(key)
+    _seen_message_set.add(key)
+    return False
 
 
 def _clean(text: str) -> str:
@@ -143,7 +193,7 @@ def help_text(is_manager: bool) -> str:
             "❓ Как работает VK-бот\n\n"
             "• «Очередь заявок» — новые и требующие внимания заявки.\n"
             "• «Прайс-лист» — ставки и SLA.\n"
-            "• «Кабинет» — тестовый прототип сайта.\n"
+            "• «Кабинет» — ваши заявки и документы по персональной ссылке.\n"
             "• Напишите вопрос — ответит ИИ-консультант.\n\n"
             "Команды: /start — меню, /cancel — отмена, /id — ваш VK ID."
         )
@@ -314,12 +364,12 @@ async def start_order(vk: VKAPI, user_id: int) -> None:
 
 
 async def show_orders(
-    vk: VKAPI, api: ConsultFlowAPI, user_id: int
+    vk: VKAPI, api: ConsultFlowAPI, user_id: int, is_manager: bool = False
 ) -> None:
     try:
         items = await api.my_orders(-user_id, limit=10)
     except APIError as exc:
-        await send(vk, user_id, f"⚠️ {exc.message}", keyboard=keyboards.main_menu())
+        await send(vk, user_id, f"⚠️ {exc.message}", keyboard=keyboards.main_menu(is_manager))
         return
 
     if not items:
@@ -327,7 +377,7 @@ async def show_orders(
             vk,
             user_id,
             "📋 У вас пока нет заявок.\nНажмите «Оставить заявку» в меню.",
-            keyboard=keyboards.main_menu(),
+            keyboard=keyboards.main_menu(is_manager),
         )
         return
 
@@ -338,8 +388,38 @@ async def show_orders(
             f"{item.get('title', '—')}\n"
             f"Сумма: {money(item.get('amount', 0))}\n"
         )
-    lines.append("Подробности и документы — в кабинете на сайте.")
-    await send(vk, user_id, "\n".join(lines), keyboard=keyboards.main_menu())
+    lines.append("Подробности и документы — в личном кабинете.")
+    try:
+        link = await api.client_link(-user_id)
+        lines.append(f"\n🖥 Личный кабинет:\n{link['url']}")
+    except APIError:
+        pass
+    await send(vk, user_id, "\n".join(lines), keyboard=keyboards.main_menu(is_manager))
+
+
+async def show_client_cabinet(
+    vk: VKAPI, api: ConsultFlowAPI, user_id: int, profile: dict[str, Any]
+) -> None:
+    """Персональная ссылка в кабинет: клиент видит только свои заявки."""
+    try:
+        link = await api.client_link(-user_id)
+    except APIError as exc:
+        await send(
+            vk,
+            user_id,
+            f"⚠️ {exc.message}",
+            keyboard=keyboards.main_menu(bool(profile.get("is_manager"))),
+        )
+        return
+    await send(
+        vk,
+        user_id,
+        "🖥 Ваш личный кабинет\n\n"
+        "Ссылка действует "
+        f"{link['expires_in_minutes'] // 60 // 24} дн. и показывает только ваши заявки:\n"
+        f"{link['url']}",
+        keyboard=keyboards.main_menu(bool(profile.get("is_manager"))),
+    )
 
 
 async def show_queue(
@@ -430,6 +510,11 @@ async def create_order(
     )
     if data.get("kp"):
         text += "\n\n📄 Черновик КП сохранён в карточке заявки."
+    try:
+        link = await api.client_link(-user_id)
+        text += f"\n\n🖥 Личный кабинет — заявка и документы:\n{link['url']}"
+    except APIError:
+        pass
     await send(vk, user_id, text, keyboard=keyboards.main_menu(bool(profile.get("is_manager"))))
 
 
@@ -723,14 +808,13 @@ async def handle_message(
         await start_order(vk, user_id)
         return
     if "мои заявки" in lower or lower in {"заявки", "статус"}:
-        await show_orders(vk, api, user_id)
+        await show_orders(vk, api, user_id, bool(profile.get("is_manager")))
         return
     if "прайс" in lower:
         await show_pricing(vk, api, user_id)
         return
     if "кабинет" in lower or "сайт" in lower or "прототип" in lower:
-        url = get_settings().prototype_url
-        await send(vk, user_id, f"🖥 Кабинет ConsultFlow:\n{url}", keyboard=keyboards.main_menu(bool(profile.get("is_manager"))))
+        await show_client_cabinet(vk, api, user_id, profile)
         return
     if "очередь" in lower and profile.get("is_manager"):
         await show_queue(vk, api, user_id)
@@ -791,6 +875,7 @@ async def run() -> None:
     # В URL Long Poll находится ключ сессии — не пишем его в INFO-логи.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+    acquire_instance_lock()
     settings = get_settings()
     if not settings.is_vk_configured:
         logger.error(
@@ -842,6 +927,12 @@ async def run() -> None:
                     continue
                 message = (update.get("object") or {}).get("message") or {}
                 if message.get("out"):
+                    continue
+                if _is_duplicate_message(message):
+                    logger.info(
+                        "VK: пропущено повторное событие сообщения %s",
+                        message.get("id"),
+                    )
                     continue
                 try:
                     await handle_message(vk, api, message)

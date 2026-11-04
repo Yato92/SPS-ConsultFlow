@@ -114,6 +114,11 @@ class ConsultFlowAPI:
             "POST", "/api/bot/link", json={"telegram_id": telegram_id}
         )
 
+    async def client_link(self, telegram_id: int) -> dict:
+        return await self._call(
+            "POST", "/api/bot/client-link", json={"telegram_id": telegram_id}
+        )
+
     async def pricing(self) -> dict:
         return await self._call("GET", "/api/bot/pricing")
 

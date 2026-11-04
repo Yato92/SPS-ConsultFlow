@@ -384,6 +384,44 @@ class BotLinkOut(BaseModel):
     expires_in_minutes: int
 
 
+class BotClientLinkIn(BaseModel):
+    telegram_id: int
+
+
+# ---------- Личный кабинет клиента ----------
+
+
+class ClientPortalDocumentOut(BaseModel):
+    id: int
+    type: str
+    name: str
+    status: str
+    created_at: datetime
+
+
+class ClientPortalOrderOut(BaseModel):
+    id: int
+    number: str
+    title: str
+    description: str | None = None
+    status: str
+    status_label: str
+    practice: str
+    practice_label: str
+    amount: float
+    paid_amount: float
+    created_at: datetime
+    sla_due_at: datetime | None = None
+    is_overdue: bool = False
+    documents: list[ClientPortalDocumentOut] = []
+
+
+class ClientPortalOut(BaseModel):
+    client_name: str
+    contact_person: str | None = None
+    orders: list[ClientPortalOrderOut] = []
+
+
 class BotStatsOut(BaseModel):
     orders_total: int
     active_orders: int

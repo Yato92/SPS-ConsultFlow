@@ -10,6 +10,7 @@ from app.api.routes import (
     analytics,
     auth,
     bot,
+    client,
     clients,
     orders,
     prototype,
@@ -60,6 +61,7 @@ app.include_router(auth.router, prefix=api)
 app.include_router(analytics.router, prefix=api)
 app.include_router(orders.router, prefix=api)
 app.include_router(clients.router, prefix=api)
+app.include_router(client.router, prefix=api)
 app.include_router(users.router, prefix=api)
 app.include_router(telegram.router, prefix=api)
 app.include_router(bot.router, prefix=api)

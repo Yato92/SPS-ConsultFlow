@@ -376,6 +376,45 @@ Access-токен — JWT (HS256), срок 12 часов. Magic-link — JWT т
 { "url": "http://localhost:5173/magic?token=eyJhbGciOi..." }
 ```
 
+### `POST /bot/client-link`
+
+```json
+{ "telegram_id": -711646918 }
+```
+
+Возвращает персональную ссылку клиента на кабинет и срок её действия. Для VK
+используется технический отрицательный ID. Если у клиента ещё нет заявок — 404.
+
+```json
+{
+  "url": "http://192.168.1.102:5173/client?token=eyJhbGciOi...",
+  "expires_in_minutes": 10080
+}
+```
+
+### `GET /client/portal?token=...`
+
+Публичный кабинет клиента. Токен подписан `SECRET_KEY`, действует 7 дней и
+показывает только заявки этого клиента (без пароля и без доступа к чужим данным).
+
+```json
+{
+  "client_name": "Елена Иванова",
+  "contact_person": null,
+  "orders": [
+    {
+      "number": "CF-2026-0078",
+      "title": "Хочу заработать миллион",
+      "status": "new",
+      "status_label": "Новая заявка",
+      "amount": 500000,
+      "paid_amount": 0,
+      "documents": []
+    }
+  ]
+}
+```
+
 ### `GET /bot/notifications?limit=50`
 
 Недоставленные уведомления (outbox).

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type {
   Client,
+  ClientPortal,
   Dashboard,
   BotUserRow,
   Notification,
@@ -32,7 +33,7 @@ api.interceptors.response.use(
   (error) => {
     const status = error?.response?.status;
     const path = window.location.pathname;
-    if (status === 401 && path !== '/login' && path !== '/magic') {
+    if (status === 401 && !['/login', '/magic', '/client'].includes(path)) {
       localStorage.removeItem(TOKEN_KEY);
       window.location.href = '/login';
     }
@@ -72,6 +73,11 @@ export async function loginRequest(email: string, password: string): Promise<Tok
 
 export async function magicRequest(token: string): Promise<TokenResponse> {
   const { data } = await api.post<TokenResponse>('/auth/magic', { token });
+  return data;
+}
+
+export async function clientPortalRequest(token: string): Promise<ClientPortal> {
+  const { data } = await api.get<ClientPortal>('/client/portal', { params: { token } });
   return data;
 }
 

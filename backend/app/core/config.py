@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 720
     magic_link_expire_minutes: int = 15
+    # Ссылка клиента на личный кабинет из VK/Telegram-бота.
+    client_link_expire_minutes: int = 10080
 
     database_url: str = "sqlite:///./consultflow.db"
 
@@ -34,6 +36,7 @@ class Settings(BaseSettings):
 
     bot_api_token: str = "dev-bot-token-change-me"
     manager_telegram_ids: str = ""
+    manager_vk_ids: str = ""
 
     # ИИ-разбор заявок (BPMN: извлечение данных, классификация, КП).
     ai_enabled: bool = True
@@ -57,6 +60,15 @@ class Settings(BaseSettings):
         for chunk in self.manager_telegram_ids.split(","):
             chunk = chunk.strip()
             if chunk.lstrip("-").isdigit():
+                result.add(int(chunk))
+        return result
+
+    @property
+    def manager_vk_id_set(self) -> set[int]:
+        result: set[int] = set()
+        for chunk in self.manager_vk_ids.split(","):
+            chunk = chunk.strip()
+            if chunk.isdigit():
                 result.add(int(chunk))
         return result
 
