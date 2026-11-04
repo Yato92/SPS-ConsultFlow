@@ -23,8 +23,15 @@ async def notification_worker(
                 sent: list[int] = []
                 for item in items:
                     try:
+                        recipient = int(item["recipient"])
+                    except (ValueError, TypeError):
+                        continue
+                    if recipient < 0:
+                        # Отрицательные ID — пользователи VK-бота.
+                        continue
+                    try:
                         await bot.send_message(
-                            int(item["recipient"]),
+                            recipient,
                             item["text"],
                             disable_web_page_preview=True,
                         )
