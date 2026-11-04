@@ -265,6 +265,11 @@ def _split_reply(text: str, limit: int = _MAX_REPLY) -> list[str]:
     return [chunk for chunk in chunks if chunk]
 
 
+def split_message(text: str, limit: int = _MAX_REPLY) -> list[str]:
+    """Публичная обёртка для других каналов (ВКонтакте)."""
+    return _split_reply(text, limit)
+
+
 async def _context(
     api: ConsultFlowAPI, message: Message
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]], bool, str]:

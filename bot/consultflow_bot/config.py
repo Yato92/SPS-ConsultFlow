@@ -17,6 +17,8 @@ class BotSettings(BaseSettings):
     backend_url: str = "http://127.0.0.1:8000"
     bot_api_token: str = "dev-bot-token-change-me"
     telegram_proxy: str = ""
+    vk_group_id: str = ""
+    vk_token: str = ""
     prototype_url: str = "http://127.0.0.1:5173/prototype/"
     notifications_interval: int = 5
     request_timeout: int = 20
@@ -38,6 +40,17 @@ class BotSettings(BaseSettings):
     @property
     def is_ai_configured(self) -> bool:
         return self.ai_enabled and bool(self.polza_api_key.strip())
+
+    @property
+    def vk_group_id_int(self) -> int:
+        try:
+            return int(self.vk_group_id.strip())
+        except (TypeError, ValueError):
+            return 0
+
+    @property
+    def is_vk_configured(self) -> bool:
+        return bool(self.vk_token.strip()) and self.vk_group_id_int > 0
 
 
 @lru_cache

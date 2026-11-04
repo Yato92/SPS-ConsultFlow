@@ -299,6 +299,26 @@ AI_MODEL=deepseek/deepseek-v4.1-flash-1017
 После перезапуска бота в меню появится «🤖 Спросить ИИ». Подробнее —
 [docs/ai.md](docs/ai.md).
 
+### VK-бот
+
+Второй канал на случай, если Telegram недоступен. Работает через Bots Long Poll
+сообщества, без публичного вебхука.
+
+1. Создайте сообщество ВКонтакте, включите сообщения и Long Poll API с событием
+   `message_new`.
+2. Создайте токен сообщества с правами `messages` и `manage`.
+3. Добавьте в `.env`:
+
+```env
+VK_GROUP_ID=123456789
+VK_TOKEN=токен-сообщества
+```
+
+4. Запустите backend, затем [start-vk-bot.cmd](start-vk-bot.cmd).
+5. Напишите сообществу `/start`.
+
+Подробная настройка, ограничения и разбор ошибок — [docs/vk.md](docs/vk.md).
+
 ## Запуск через Docker
 
 ```powershell
@@ -424,6 +444,7 @@ cd backend
 - [docs/bpmn.md](docs/bpmn.md) — процесс «как есть / как должно быть», статусы и SLA;
 - [docs/testing.md](docs/testing.md) — программа и результаты тестирования;
 - [docs/ai.md](docs/ai.md) — подключение Polza.ai, правила ответов и примеры диалогов;
+- [docs/vk.md](docs/vk.md) — VK-бот: Long Poll, настройка сообщества и ограничения;
 - [frontend/public/prototype/README.md](frontend/public/prototype/README.md) — как открыть интерактивный макет и пройти оба сценария;
 - [consultflow-wiki/](consultflow-wiki/) — продуктовые артефакты РГР (роли, состояние, развитие).
 
