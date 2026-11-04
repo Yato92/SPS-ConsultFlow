@@ -16,6 +16,7 @@ class BotSettings(BaseSettings):
     bot_token: str = ""
     backend_url: str = "http://127.0.0.1:8000"
     bot_api_token: str = "dev-bot-token-change-me"
+    telegram_proxy: str = ""
     prototype_url: str = "http://127.0.0.1:5173/prototype/"
     notifications_interval: int = 5
     request_timeout: int = 20

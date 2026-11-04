@@ -261,6 +261,31 @@ python run.py
 Бот читает тот же `.env` из корня проекта и обращается к backend по `BACKEND_URL`
 (по умолчанию `http://127.0.0.1:8000`).
 
+#### Если Telegram не подключается
+
+Ошибка `ClientConnectorError ... api.telegram.org:443` означает, что компьютер не
+может открыть соединение с Telegram. Код и токен здесь ни при чём.
+
+Проверка:
+
+```powershell
+Test-NetConnection api.telegram.org -Port 443
+```
+
+Если `TcpTestSucceeded : False`, нужен VPN или прокси:
+
+- **VPN** — включите его до запуска `start-bot.cmd`;
+- **прокси** — добавьте в `.env` строку и перезапустите бота:
+
+```env
+TELEGRAM_PROXY=socks5://127.0.0.1:1080
+# или http://user:password@host:port
+```
+
+Для прокси уже добавлена зависимость `aiohttp-socks` в
+`bot/requirements.txt`. Не используйте случайные публичные прокси: через них
+проходит токен бота.
+
 ### ИИ-консультант
 
 Чтобы бот отвечал на свободные вопросы, добавьте в `.env` ключ Polza.ai:

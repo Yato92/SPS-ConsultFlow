@@ -1,5 +1,6 @@
 # ConsultFlow — Telegram bot (aiogram 3)
 
 aiogram>=3.13
+aiohttp-socks>=0.9
 httpx>=0.27
 pydantic-settings>=2.4

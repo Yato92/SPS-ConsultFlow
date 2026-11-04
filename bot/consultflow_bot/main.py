@@ -5,6 +5,7 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -36,6 +37,11 @@ async def run() -> None:
     bot = Bot(
         token=settings.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+        session=(
+            AiohttpSession(proxy=settings.telegram_proxy)
+            if settings.telegram_proxy
+            else None
+        ),
     )
     dispatcher = Dispatcher(storage=MemoryStorage())
     dispatcher.include_router(common.router)
