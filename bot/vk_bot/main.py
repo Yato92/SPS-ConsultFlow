@@ -620,6 +620,9 @@ async def run() -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    # В URL Long Poll находится ключ сессии — не пишем его в INFO-логи.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
     settings = get_settings()
     if not settings.is_vk_configured:
         logger.error(
