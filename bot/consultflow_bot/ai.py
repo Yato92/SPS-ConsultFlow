@@ -95,6 +95,18 @@ class PolzaClient:
                     "ИИ-сервис перегружен или превышен лимит запросов. Подождите немного.",
                     response.status_code,
                 )
+            if response.status_code == 404:
+                raise AIError(
+                    f"Модель «{self._settings.ai_model}» не найдена в Polza.ai. "
+                    "Проверьте AI_MODEL в .env.",
+                    response.status_code,
+                )
+            if response.status_code == 400:
+                raise AIError(
+                    "ИИ-сервис отклонил запрос. Проверьте название модели AI_MODEL "
+                    "и попробуйте ещё раз.",
+                    response.status_code,
+                )
             raise AIError(
                 "ИИ-сервис временно недоступен. Попробуйте позже.",
                 response.status_code,
@@ -102,13 +114,19 @@ class PolzaClient:
 
         try:
             data = response.json()
-            content = data["choices"][0]["message"]["content"]
+            choice = data["choices"][0]
+            content = choice["message"]["content"]
         except (ValueError, KeyError, IndexError, TypeError) as exc:
             logger.warning("Polza.ai malformed response: %s", response.text[:300])
             raise AIError("ИИ-сервис вернул неожиданный ответ. Попробуйте позже.") from exc
 
         if not isinstance(content, str) or not content.strip():
             raise AIError("ИИ-сервис вернул пустой ответ. Переформулируйте вопрос.")
+
+        if choice.get("finish_reason") == "length" and not content.rstrip().endswith(
+            (".", "!", "?", "…")
+        ):
+            content = content.rstrip() + "…"
 
         usage = data.get("usage") or {}
         logger.info(

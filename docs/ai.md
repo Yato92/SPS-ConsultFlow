@@ -34,7 +34,9 @@ Telegram → aiogram → consultflow_bot/ai.py → Polza.ai /chat/completions
 AI_ENABLED=true
 POLZA_API_KEY=ваш-ключ
 POLZA_BASE_URL=https://polza.ai/api/v1
-AI_MODEL=openai/gpt-4o-mini
+AI_MODEL=deepseek/deepseek-v4.1-flash-1017
+AI_MAX_TOKENS=1200
+AI_TIMEOUT=90
 ```
 
 4. Перезапустите бота: `start-bot.cmd` или `python run.py`.
@@ -42,9 +44,10 @@ AI_MODEL=openai/gpt-4o-mini
 Если ключ задан, в меню появляется кнопка **«🤖 Спросить ИИ»**. Можно и просто
 написать боту обычным сообщением — команда не нужна.
 
-Модель можно заменить, например на `openai/gpt-4.1-mini`,
+Модель можно заменить, например на `openai/gpt-4o-mini`,
 `anthropic/claude-3-5-haiku` или другую из каталога Polza.ai. Название модели
-передаётся как есть в поле `model`.
+передаётся как есть в поле `model`. `AI_MAX_TOKENS` ограничивает длину ответа
+вместе со скрытыми reasoning-токенами, поэтому не ставьте его слишком маленьким.
 
 ## Что бот отвечает
 
@@ -98,6 +101,7 @@ ConsultFlow.
 | «ИИ-сервис отклонил API-ключ» | неверный `POLZA_API_KEY` |
 | «На балансе Polza.ai закончились средства» | пополните баланс |
 | «ИИ-сервис перегружен» | лимит запросов, повторите позже |
+| «Модель … не найдена» | неверное название `AI_MODEL` |
 | «Не удалось связаться с ИИ-сервисом» | нет сети или Polza.ai недоступен |
 | «ИИ-сервис не ответил вовремя» | таймаут, повторите запрос |
 | Кнопки ИИ нет в меню | не задан `POLZA_API_KEY` или `AI_ENABLED=false` |

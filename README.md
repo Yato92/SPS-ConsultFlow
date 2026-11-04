@@ -267,7 +267,7 @@ python run.py
 
 ```env
 POLZA_API_KEY=ваш-ключ
-AI_MODEL=openai/gpt-4o-mini
+AI_MODEL=deepseek/deepseek-v4.1-flash-1017
 ```
 
 Ключ создаётся в [личном кабинете Polza.ai](https://polza.ai/dashboard/api-keys).

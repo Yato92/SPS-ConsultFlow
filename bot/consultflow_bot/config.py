@@ -25,8 +25,8 @@ class BotSettings(BaseSettings):
     polza_base_url: str = "https://polza.ai/api/v1"
     ai_model: str = "openai/gpt-4o-mini"
     ai_temperature: float = 0.4
-    ai_max_tokens: int = 700
-    ai_timeout: float = 45.0
+    ai_max_tokens: int = 1200
+    ai_timeout: float = 90.0
     ai_history_limit: int = 12
     ai_extra_prompt: str = ""
 
