@@ -138,6 +138,52 @@ def test_export_csv(client, manager_headers):
     assert "CF-" in response.text
 
 
+def test_bulk_soft_delete_and_restore(client, manager_headers):
+    client_row = _first_client(client, manager_headers)
+    created_ids = []
+    for index in range(2):
+        created = client.post(
+            "/api/orders",
+            json={
+                "client_id": client_row["id"],
+                "practice": "finance",
+                "title": f"Пакетное удаление #{index + 1}",
+                "amount": 5000,
+            },
+            headers=manager_headers,
+        )
+        assert created.status_code == 201, created.text
+        created_ids.append(created.json()["id"])
+
+    deleted = client.post(
+        "/api/orders/bulk-delete",
+        json={"ids": created_ids},
+        headers=manager_headers,
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["updated"] == 2
+    assert set(deleted.json()["ids"]) == set(created_ids)
+
+    for order_id in created_ids:
+        assert client.get(f"/api/orders/{order_id}", headers=manager_headers).status_code == 404
+
+    archived = client.get(
+        "/api/orders?include_deleted=true&page_size=100", headers=manager_headers
+    ).json()["items"]
+    archived_ids = {item["id"] for item in archived if item["is_deleted"]}
+    assert set(created_ids) <= archived_ids
+
+    restored = client.post(
+        "/api/orders/bulk-restore",
+        json={"ids": created_ids},
+        headers=manager_headers,
+    )
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["updated"] == 2
+    for order_id in created_ids:
+        assert client.get(f"/api/orders/{order_id}", headers=manager_headers).status_code == 200
+
+
 def test_admin_can_force_status(client, admin_headers):
     order = client.get("/api/orders?page_size=1", headers=admin_headers).json()["items"][0]
     if order["status"] == "closed":

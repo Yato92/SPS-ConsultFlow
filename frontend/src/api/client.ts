@@ -185,6 +185,21 @@ export async function restoreOrder(id: number): Promise<OrderDetail> {
   return data;
 }
 
+export interface BulkOrdersResult {
+  updated: number;
+  ids: number[];
+}
+
+export async function bulkDeleteOrders(ids: number[]): Promise<BulkOrdersResult> {
+  const { data } = await api.post<BulkOrdersResult>('/orders/bulk-delete', { ids });
+  return data;
+}
+
+export async function bulkRestoreOrders(ids: number[]): Promise<BulkOrdersResult> {
+  const { data } = await api.post<BulkOrdersResult>('/orders/bulk-restore', { ids });
+  return data;
+}
+
 export async function signDocument(orderId: number, documentId: number): Promise<unknown> {
   const { data } = await api.post(`/orders/${orderId}/documents/${documentId}/sign`);
   return data;

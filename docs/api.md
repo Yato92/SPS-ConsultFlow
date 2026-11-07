@@ -167,6 +167,20 @@ Access-токен — JWT (HS256), срок 12 часов. Magic-link — JWT т
 
 Роли: `admin`, `manager`. Возвращает заявку из архива (`is_deleted = false`).
 
+### `POST /orders/bulk-delete`
+
+Роли: `admin`, `manager`. Пакетное мягкое удаление:
+
+```json
+{ "ids": [41, 42, 43] }
+```
+
+Ответ: `{ "updated": 3, "ids": [41, 42, 43] }`. Записи остаются в базе.
+
+### `POST /orders/bulk-restore`
+
+Роли: `admin`, `manager`. Пакетный возврат из архива, тело и ответ такие же.
+
 ### `POST /orders/{id}/documents`
 
 ```json

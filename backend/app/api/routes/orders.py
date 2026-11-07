@@ -24,6 +24,8 @@ from app.models import Client, Document, Order, User
 from app.schemas import (
     DocumentCreate,
     DocumentOut,
+    OrderBulkIn,
+    OrderBulkOut,
     OrderCreate,
     OrderDetailOut,
     OrderListOut,
@@ -255,6 +257,74 @@ def update_order(
     order = update_order_fields(db, order, data, actor_id=user.id)
     db.refresh(order, ["client", "manager"])
     return OrderOut.model_validate(order)
+
+
+@router.post("/bulk-delete", response_model=OrderBulkOut)
+def bulk_delete_orders(
+    payload: OrderBulkIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(*MANAGER_ROLES)),
+) -> OrderBulkOut:
+    """Мягко удаляет несколько заявок сразу; записи остаются в базе."""
+    from app.services.orders import audit
+
+    orders = list(
+        db.scalars(
+            select(Order).where(
+                Order.id.in_(payload.ids), Order.is_deleted.is_(False)
+            )
+        ).all()
+    )
+    now = utcnow()
+    for order in orders:
+        order.is_deleted = True
+        order.deleted_at = now
+        order.deleted_by = user.id
+        order.updated_at = now
+        audit(
+            db,
+            "order.soft_deleted",
+            actor_type=ActorType.USER.value,
+            actor_id=user.id,
+            entity="order",
+            entity_id=order.id,
+            meta={"number": order.number, "bulk": True},
+        )
+    db.commit()
+    return OrderBulkOut(updated=len(orders), ids=[order.id for order in orders])
+
+
+@router.post("/bulk-restore", response_model=OrderBulkOut)
+def bulk_restore_orders(
+    payload: OrderBulkIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(*MANAGER_ROLES)),
+) -> OrderBulkOut:
+    """Возвращает несколько заявок из архива."""
+    from app.services.orders import audit
+
+    orders = list(
+        db.scalars(
+            select(Order).where(Order.id.in_(payload.ids), Order.is_deleted.is_(True))
+        ).all()
+    )
+    now = utcnow()
+    for order in orders:
+        order.is_deleted = False
+        order.deleted_at = None
+        order.deleted_by = None
+        order.updated_at = now
+        audit(
+            db,
+            "order.restored",
+            actor_type=ActorType.USER.value,
+            actor_id=user.id,
+            entity="order",
+            entity_id=order.id,
+            meta={"number": order.number, "bulk": True},
+        )
+    db.commit()
+    return OrderBulkOut(updated=len(orders), ids=[order.id for order in orders])
 
 
 @router.post("/{order_id}/restore", response_model=OrderOut)

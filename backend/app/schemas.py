@@ -162,6 +162,15 @@ class OrderUpdate(BaseModel):
     deadline: date | None = None
 
 
+class OrderBulkIn(BaseModel):
+    ids: list[int] = Field(min_length=1, max_length=200)
+
+
+class OrderBulkOut(BaseModel):
+    updated: int
+    ids: list[int] = []
+
+
 class StatusChangeIn(BaseModel):
     status: OrderStatus
     comment: str | None = Field(default=None, max_length=500)

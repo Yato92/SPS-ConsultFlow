@@ -45,7 +45,7 @@ npm run build
 | `test_magic_link_rejects_access_token` | access-токен нельзя использовать как magic |
 | `test_magic_link_rejects_broken_token` | повреждённый токен → `401` |
 
-### 3.2 Заказы (`tests/test_orders.py`, 8 тестов)
+### 3.2 Заказы (`tests/test_orders.py`, 9 тестов)
 
 | Тест | Проверка |
 | --- | --- |
@@ -57,6 +57,7 @@ npm run build
 | `test_export_csv` | выгрузка CSV: заголовок, разделитель, BOM |
 | `test_admin_can_force_status` | принудительный статус администратором |
 | `test_soft_delete_hides_order_but_keeps_in_database` | мягкое удаление: заявка скрыта из списка, но остаётся в базе и возвращается из архива |
+| `test_bulk_soft_delete_and_restore` | пакетное удаление нескольких заявок и возврат их из архива |
 
 ### 3.3 Аналитика (`tests/test_analytics.py`, 5 тестов)
 
@@ -120,14 +121,14 @@ npm run build
 | `test_ai_intake_finds_duplicate_for_same_client` | fuzzy-поиск дубликата по заявкам того же клиента |
 | `test_create_order_with_ai_kp_document` | сохранение листа КП как `documents.doc_type = "proposal"` |
 
-**Итого: 52 автоматических теста, все проходят.**
+**Итого: 53 автоматических теста, все проходят.**
 
 ## 4. Результаты
 
 ```
 $ cd backend && python -m pytest
 ...........................................                              [100%]
-52 passed
+53 passed
 ```
 
 Проверка фронтенда:

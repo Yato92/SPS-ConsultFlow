@@ -32,6 +32,8 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   api,
+  bulkDeleteOrders,
+  bulkRestoreOrders,
   deleteOrder,
   downloadOrdersCsv,
   getApiError,
@@ -78,6 +80,8 @@ export function OrdersPage() {
   const [exporting, setExporting] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [form] = Form.useForm<CreateFormValues>();
 
   const { data: managers } = useManagers();
@@ -195,6 +199,28 @@ export function OrdersPage() {
       message.error(getApiError(error));
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleBulk = async () => {
+    if (!selectedIds.length) return;
+    setBulkBusy(true);
+    try {
+      if (showDeleted) {
+        const result = await bulkRestoreOrders(selectedIds);
+        message.success(`Возвращено из архива: ${result.updated}`);
+      } else {
+        const result = await bulkDeleteOrders(selectedIds);
+        message.success(
+          `Удалено заявок: ${result.updated}. Записи сохранены в базе данных.`,
+        );
+      }
+      setSelectedIds([]);
+      await refreshLists();
+    } catch (error) {
+      message.error(getApiError(error));
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -420,6 +446,7 @@ export function OrdersPage() {
                 checked={showDeleted}
                 onChange={(checked) => {
                   setShowDeleted(checked);
+                  setSelectedIds([]);
                   setPage(1);
                 }}
               />
@@ -427,6 +454,33 @@ export function OrdersPage() {
                 Показать удалённые
               </span>
             </Space>
+          )}
+          {canManage && selectedIds.length > 0 && (
+            <Popconfirm
+              title={
+                showDeleted
+                  ? `Вернуть выбранные заявки (${selectedIds.length})?`
+                  : `Удалить выбранные заявки (${selectedIds.length})?`
+              }
+              description={
+                showDeleted
+                  ? 'Заявки снова появятся в работе.'
+                  : 'Они исчезнут из списка и отчётов, но останутся в базе данных.'
+              }
+              okText={showDeleted ? 'Вернуть' : 'Удалить'}
+              cancelText="Отмена"
+              okButtonProps={{ danger: !showDeleted }}
+              onConfirm={handleBulk}
+            >
+              <Button
+                danger={!showDeleted}
+                icon={showDeleted ? <UndoOutlined /> : <DeleteOutlined />}
+                loading={bulkBusy}
+              >
+                {showDeleted ? 'Вернуть выбранные' : 'Удалить выбранные'} (
+                {selectedIds.length})
+              </Button>
+            </Popconfirm>
           )}
           {data && (
             <span style={{ marginLeft: 'auto', fontSize: 12, color: '#8a90a2' }}>
@@ -444,6 +498,18 @@ export function OrdersPage() {
           dataSource={data?.items ?? []}
           columns={columns}
           scroll={{ x: 1300 }}
+          rowSelection={
+            canManage
+              ? {
+                  selectedRowKeys: selectedIds,
+                  preserveSelectedRowKeys: true,
+                  onChange: (keys) => setSelectedIds(keys as number[]),
+                  getCheckboxProps: (row) => ({
+                    disabled: showDeleted ? !row.is_deleted : row.is_deleted,
+                  }),
+                }
+              : undefined
+          }
           onRow={(row) => ({ onClick: () => openOrder(row.id) })}
           pagination={{
             current: data?.page ?? page,
