@@ -311,9 +311,13 @@ def is_demo_order(db: Session, order: Order) -> bool:
     return bool(client and order.client_id == client.id)
 
 
-def demo_orders(db: Session) -> list[Order]:
+def demo_orders(db: Session, include_external: bool = False) -> list[Order]:
     client = _demo_client(db)
     conditions = [Order.source == "prototype"]
+    if include_external:
+        # Заявки из VK/Telegram должны быть видны сотруднику в прототипе,
+        # а не только в React-дашборде.
+        conditions.append(Order.source.in_(("vk", "telegram")))
     if client is not None:
         conditions.append(Order.client_id == client.id)
     return list(
@@ -335,8 +339,12 @@ def demo_orders(db: Session) -> list[Order]:
     )
 
 
-def bootstrap(db: Session, order_id: int | None = None) -> PrototypeBootstrapOut:
-    orders = demo_orders(db)
+def bootstrap(
+    db: Session,
+    order_id: int | None = None,
+    include_external: bool = False,
+) -> PrototypeBootstrapOut:
+    orders = demo_orders(db, include_external=include_external)
     serialized = [serialize_order(db, order) for order in orders]
     current = None
     if serialized:

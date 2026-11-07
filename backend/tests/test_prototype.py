@@ -44,6 +44,39 @@ def test_bootstrap_returns_demo_orders_and_dictionaries(client):
     assert "Анна Смирнова" in payload["consultants"]
 
 
+def test_bootstrap_can_include_vk_orders_for_staff(client, bot_headers):
+    telegram_id = 555000333
+    client.post(
+        "/api/bot/users",
+        headers=bot_headers,
+        json={"telegram_id": telegram_id, "full_name": "Клиент из ВК"},
+    )
+    created = client.post(
+        "/api/bot/orders",
+        headers=bot_headers,
+        json={
+            "telegram_id": telegram_id,
+            "practice": "management",
+            "title": "Заявка из ВК для прототипа сотрудника",
+            "description": "Проверка отображения внешней заявки",
+            "hours": 8,
+            "complexity": "basic",
+        },
+    )
+    assert created.status_code == 201, created.text
+    number = created.json()["number"]
+
+    without_external = client.get("/api/prototype/bootstrap")
+    assert without_external.status_code == 200
+    assert number not in [item["number"] for item in without_external.json()["orders"]]
+
+    with_external = client.get(
+        "/api/prototype/bootstrap", params={"include_external": "true"}
+    )
+    assert with_external.status_code == 200, with_external.text
+    assert number in [item["number"] for item in with_external.json()["orders"]]
+
+
 def test_full_prototype_lifecycle(client):
     created = _create(client, "lifecycle@example.ru")
     order_id = created["id"]

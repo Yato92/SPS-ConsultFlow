@@ -107,7 +107,12 @@ async function api(path, { method = 'GET', body } = {}) {
 }
 
 async function load(orderId) {
-  const query = orderId ? `?order_id=${encodeURIComponent(orderId)}` : '';
+  const params = new URLSearchParams();
+  if (orderId) params.set('order_id', String(orderId));
+  // Сотруднику показываем и реальные заявки из VK/Telegram, клиенту — только
+  // демонстрационную ленту, чтобы не раскрывать чужие данные.
+  if (state.role === 'staff') params.set('include_external', 'true');
+  const query = params.toString() ? `?${params.toString()}` : '';
   const data = await api(`/bootstrap${query}`);
   state.requests = data.orders || [];
   state.practices = (data.practices || []).map((item) => [item.value, item.label]);
@@ -884,7 +889,7 @@ async function handleAction(action, dataset) {
     case 'role':
       state.role = dataset.role;
       state.remarkOpen = false;
-      render();
+      await reload(state.activeId);
       break;
 
     case 'open':

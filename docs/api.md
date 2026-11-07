@@ -441,7 +441,7 @@ Access-токен — JWT (HS256), срок 12 часов. Magic-link — JWT т
 
 | Метод | Путь | Назначение |
 | --- | --- | --- |
-| `GET` | `/prototype/bootstrap?order_id=...` | список заявок, текущая заявка, справочники |
+| `GET` | `/prototype/bootstrap?order_id=...&include_external=true` | список заявок; `include_external=true` добавляет VK/Telegram-заявки для режима «Сотрудник» |
 | `POST` | `/prototype/orders` | создать заявку |
 | `POST` | `/prototype/orders/{id}/clarify` | задать вопрос клиенту |
 | `POST` | `/prototype/orders/{id}/answer` | ответ клиента на уточнение |

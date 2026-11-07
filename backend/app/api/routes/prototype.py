@@ -40,14 +40,21 @@ def _error(exc: service.PrototypeError) -> HTTPException:
 @router.get("/bootstrap", response_model=PrototypeBootstrapOut)
 def bootstrap(
     order_id: int | None = Query(default=None, ge=1),
+    include_external: bool = Query(default=False),
     db: Session = Depends(get_db),
 ) -> PrototypeBootstrapOut:
-    return service.bootstrap(db, order_id)
+    return service.bootstrap(db, order_id, include_external=include_external)
 
 
 @router.get("/orders", response_model=list[PrototypeOrderOut])
-def list_orders(db: Session = Depends(get_db)) -> list[PrototypeOrderOut]:
-    return [service.serialize_order(db, order) for order in service.demo_orders(db)]
+def list_orders(
+    include_external: bool = Query(default=False),
+    db: Session = Depends(get_db),
+) -> list[PrototypeOrderOut]:
+    return [
+        service.serialize_order(db, order)
+        for order in service.demo_orders(db, include_external=include_external)
+    ]
 
 
 @router.get("/orders/{order_id}", response_model=PrototypeOrderOut)

@@ -16,6 +16,9 @@ export function useDashboard(params: DashboardParams) {
     queryKey: ['dashboard', params],
     queryFn: () => fetchDashboard(params),
     staleTime: 30_000,
+    // Заявка из VK появляется без ручного обновления страницы.
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -24,6 +27,8 @@ export function useOrders(params: OrdersParams) {
     queryKey: ['orders', params],
     queryFn: () => fetchOrders(params),
     placeholderData: (previous) => previous,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 }
 
