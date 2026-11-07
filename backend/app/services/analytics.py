@@ -62,8 +62,10 @@ def _month_keys(count: int = 12) -> list[tuple[str, str]]:
 
 
 def _base_query(date_from: date | None, date_to: date | None, practice: str | None):
-    query = select(Order).options(
-        selectinload(Order.client), selectinload(Order.manager)
+    query = (
+        select(Order)
+        .where(Order.is_deleted.is_(False))
+        .options(selectinload(Order.client), selectinload(Order.manager))
     )
     if date_from:
         query = query.where(Order.created_at >= datetime.combine(date_from, time.min))

@@ -90,6 +90,16 @@ class Order(Base):
     )
     closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    # Мягкое удаление: сотрудник убирает заявку из интерфейса, но запись и все
+    # связанные данные остаются в базе и доступны для восстановления.
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", index=True
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    deleted_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
     client: Mapped["Client"] = relationship(back_populates="orders")
     manager: Mapped["User | None"] = relationship(
         back_populates="orders", foreign_keys=[manager_id]

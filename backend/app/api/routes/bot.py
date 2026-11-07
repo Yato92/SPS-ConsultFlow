@@ -164,6 +164,7 @@ def create_bot_order(payload: BotOrderIn, db: Session = Depends(get_db)) -> BotO
             Order.client_id == client.id,
             Order.title == payload.title,
             Order.description == payload.description,
+            Order.is_deleted.is_(False),
             Order.created_at >= utcnow() - timedelta(minutes=2),
         )
         .order_by(Order.id.desc())
@@ -255,12 +256,17 @@ def client_orders(
     query = (
         select(Order)
         .join(Client)
-        .where(Client.telegram_id == telegram_id)
+        .where(Client.telegram_id == telegram_id, Order.is_deleted.is_(False))
         .order_by(Order.created_at.desc())
         .limit(limit)
     )
     if bot_user.role == BotRole.MANAGER.value:
-        query = select(Order).order_by(Order.created_at.desc()).limit(limit)
+        query = (
+            select(Order)
+            .where(Order.is_deleted.is_(False))
+            .order_by(Order.created_at.desc())
+            .limit(limit)
+        )
 
     orders = db.scalars(query).all()
     return [
@@ -286,7 +292,7 @@ def client_order_detail(
     bot_user = get_bot_user(db, telegram_id)
     order = db.scalar(
         select(Order)
-        .where(Order.number == number)
+        .where(Order.number == number, Order.is_deleted.is_(False))
         .options(selectinload(Order.client), selectinload(Order.events))
     )
     if order is None:
@@ -404,6 +410,7 @@ def manager_queue(
     orders = db.scalars(
         select(Order)
         .where(
+            Order.is_deleted.is_(False),
             Order.status.in_(
                 [
                     OrderStatus.NEW.value,
@@ -411,7 +418,7 @@ def manager_queue(
                     OrderStatus.QUALIFIED.value,
                     OrderStatus.REVISION.value,
                 ]
-            )
+            ),
         )
         .order_by(Order.created_at.asc())
         .limit(20)
@@ -441,7 +448,7 @@ def bot_change_status(
 
     order = db.scalar(
         select(Order)
-        .where(Order.id == order_id)
+        .where(Order.id == order_id, Order.is_deleted.is_(False))
         .options(selectinload(Order.client), selectinload(Order.events))
     )
     if order is None:
@@ -485,7 +492,9 @@ def bot_stats(telegram_id: int, db: Session = Depends(get_db)) -> BotStatsOut:
 
     dashboard = build_dashboard(db)
     new_orders = db.scalar(
-        select(func.count(Order.id)).where(Order.status == OrderStatus.NEW.value)
+        select(func.count(Order.id)).where(
+            Order.status == OrderStatus.NEW.value, Order.is_deleted.is_(False)
+        )
     ) or 0
     return BotStatsOut(
         orders_total=dashboard.summary.orders_total,

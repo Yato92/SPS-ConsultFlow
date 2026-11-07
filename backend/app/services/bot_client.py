@@ -67,7 +67,7 @@ class BotClientError(ValueError):
 def load_order(db: Session, order_id: int) -> Order | None:
     return db.scalar(
         select(Order)
-        .where(Order.id == order_id)
+        .where(Order.id == order_id, Order.is_deleted.is_(False))
         .options(
             selectinload(Order.client),
             selectinload(Order.manager),

@@ -326,6 +326,7 @@ def demo_orders(db: Session, include_external: bool = False) -> list[Order]:
             select(Order)
             .where(
                 Order.status != OrderStatus.CANCELLED.value,
+                Order.is_deleted.is_(False),
                 or_(*conditions),
             )
             .options(
@@ -365,7 +366,7 @@ def bootstrap(
 
 def get_order(db: Session, order_id: int) -> Order:
     order = _load_order(db, order_id)
-    if order is None:
+    if order is None or order.is_deleted:
         raise PrototypeError("Заявка не найдена")
     if not is_demo_order(db, order) and order.source not in {"vk", "telegram"}:
         raise PrototypeError("Заявка не найдена")

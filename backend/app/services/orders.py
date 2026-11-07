@@ -342,4 +342,6 @@ def update_order_fields(
 
 
 def active_orders_query():
-    return select(Order).where(Order.status.in_(ACTIVE_STATUSES))
+    return select(Order).where(
+        Order.status.in_(ACTIVE_STATUSES), Order.is_deleted.is_(False)
+    )

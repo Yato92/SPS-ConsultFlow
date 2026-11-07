@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 
 from app.api.routes import (
     analytics,
@@ -25,9 +25,44 @@ from app.seed import seed, seed_prototype
 settings = get_settings()
 
 
+def ensure_soft_delete_columns() -> None:
+    """Добавляет поля мягкого удаления в существующую таблицу orders.
+
+    `create_all` не меняет уже созданные таблицы, поэтому для работающей базы
+    (SQLite локально, PostgreSQL на сервере) выполняем безопасный ALTER TABLE.
+    """
+    inspector = inspect(engine)
+    if "orders" not in inspector.get_table_names():
+        return
+    columns = {column["name"] for column in inspector.get_columns("orders")}
+    is_sqlite = engine.dialect.name == "sqlite"
+    timestamp_type = "DATETIME" if is_sqlite else "TIMESTAMP"
+    statements: list[str] = []
+    if "is_deleted" not in columns:
+        default = "0" if is_sqlite else "FALSE"
+        statements.append(
+            f"ALTER TABLE orders ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT {default}"
+        )
+    if "deleted_at" not in columns:
+        statements.append(f"ALTER TABLE orders ADD COLUMN deleted_at {timestamp_type} NULL")
+    if "deleted_by" not in columns:
+        statements.append("ALTER TABLE orders ADD COLUMN deleted_by INTEGER NULL")
+    if statements:
+        with engine.begin() as connection:
+            for statement in statements:
+                connection.execute(text(statement))
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_orders_is_deleted "
+                    "ON orders (is_deleted)"
+                )
+            )
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    ensure_soft_delete_columns()
     if settings.seed_demo:
         with SessionLocal() as db:
             seed(db)

@@ -90,6 +90,7 @@ Access-токен — JWT (HS256), срок 12 часов. Magic-link — JWT т
 | `date_from`, `date_to` | date | период создания (`YYYY-MM-DD`) |
 | `page`, `page_size` | int | пагинация (по умолчанию 1 и 20) |
 | `sort_by`, `sort_dir` | string | `created_at`, `amount`, `sla_due_at`; `asc`/`desc` |
+| `include_deleted` | bool | `true` — показать архив удалённых (только сотрудники) |
 
 ```json
 {
@@ -104,6 +105,7 @@ Access-токен — JWT (HS256), срок 12 часов. Magic-link — JWT т
       "paid_amount": 120000.0,
       "expenses": 90000.0,
       "is_overdue": false,
+      "is_deleted": false,
       "sla_due_at": "2026-03-05T09:00:00",
       "client": { "id": 7, "name": "ООО «Цифровые решения»" },
       "manager": { "id": 2, "full_name": "Менеджер Проектов" }
@@ -154,6 +156,16 @@ Access-токен — JWT (HS256), срок 12 часов. Magic-link — JWT т
 
 Ответ — `OrderDetailOut`. `409`, если переход запрещён словарём статусов.
 Администратор может установить любой статус (force).
+
+### `DELETE /orders/{id}`
+
+Роли: `admin`, `manager`. Мягкое удаление: заявка исчезает из списков,
+аналитики, кабинета клиента и ботов, но строка, документы, история и
+уведомления остаются в базе (`is_deleted = true`, `deleted_at`, `deleted_by`).
+
+### `POST /orders/{id}/restore`
+
+Роли: `admin`, `manager`. Возвращает заявку из архива (`is_deleted = false`).
 
 ### `POST /orders/{id}/documents`
 

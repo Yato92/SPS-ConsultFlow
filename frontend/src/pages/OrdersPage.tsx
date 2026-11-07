@@ -1,9 +1,11 @@
 import {
+  DeleteOutlined,
   DownloadOutlined,
   FilterOutlined,
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
+  UndoOutlined,
 } from '@ant-design/icons';
 import {
   App,
@@ -14,8 +16,10 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Select,
   Space,
+  Switch,
   Table,
   Tag,
   Tooltip,
@@ -28,8 +32,10 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   api,
+  deleteOrder,
   downloadOrdersCsv,
   getApiError,
+  restoreOrder,
 } from '@/api/client';
 import { useClients, useManagers, useOrders } from '@/api/queries';
 import type { Order } from '@/api/types';
@@ -70,6 +76,8 @@ export function OrdersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
   const [form] = Form.useForm<CreateFormValues>();
 
   const { data: managers } = useManagers();
@@ -93,8 +101,9 @@ export function OrdersPage() {
       page_size: pageSize,
       sort_by: 'created_at',
       sort_dir: 'desc' as const,
+      include_deleted: showDeleted || undefined,
     }),
-    [search, statuses, practice, managerId, range, page, pageSize],
+    [search, statuses, practice, managerId, range, page, pageSize, showDeleted],
   );
   const { data, isFetching, refetch } = useOrders(params);
 
@@ -155,6 +164,40 @@ export function OrdersPage() {
     }
   };
 
+  const refreshLists = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['orders'] });
+    await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  };
+
+  const handleDelete = async (row: Order) => {
+    setBusyId(row.id);
+    try {
+      await deleteOrder(row.id);
+      message.success(
+        `Заказ ${row.number} убран из списка. Запись сохранена в базе данных.`,
+      );
+      if (orderParam === row.id) closeOrder();
+      await refreshLists();
+    } catch (error) {
+      message.error(getApiError(error));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleRestore = async (row: Order) => {
+    setBusyId(row.id);
+    try {
+      await restoreOrder(row.id);
+      message.success(`Заказ ${row.number} возвращён из архива`);
+      await refreshLists();
+    } catch (error) {
+      message.error(getApiError(error));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const columns: ColumnsType<Order> = [
     {
       title: 'Заказ',
@@ -162,7 +205,14 @@ export function OrdersPage() {
       width: 270,
       render: (value: string, row) => (
         <div>
-          <div className="cell-strong">{value}</div>
+          <div className="cell-strong">
+            {value}
+            {row.is_deleted && (
+              <Tag color="default" bordered={false} style={{ marginLeft: 8 }}>
+                в архиве
+              </Tag>
+            )}
+          </div>
           <div
             className="cell-muted"
             style={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis' }}
@@ -233,6 +283,47 @@ export function OrdersPage() {
         ),
     },
   ];
+
+  if (canManage) {
+    columns.push({
+      title: '',
+      key: 'actions',
+      width: 130,
+      fixed: 'right',
+      render: (_, row) => (
+        <div onClick={(event) => event.stopPropagation()}>
+          {row.is_deleted ? (
+            <Button
+              size="small"
+              icon={<UndoOutlined />}
+              loading={busyId === row.id}
+              onClick={() => handleRestore(row)}
+            >
+              Вернуть
+            </Button>
+          ) : (
+            <Popconfirm
+              title="Удалить заказ?"
+              description="Он исчезнет из списка и отчётов, но останется в базе данных."
+              okText="Удалить"
+              cancelText="Отмена"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => handleDelete(row)}
+            >
+              <Button
+                danger
+                size="small"
+                icon={<DeleteOutlined />}
+                loading={busyId === row.id}
+              >
+                Удалить
+              </Button>
+            </Popconfirm>
+          )}
+        </div>
+      ),
+    });
+  }
 
   return (
     <>
@@ -323,6 +414,20 @@ export function OrdersPage() {
           <Button icon={<FilterOutlined />} onClick={resetFilters}>
             Сбросить
           </Button>
+          {canManage && (
+            <Space size={6}>
+              <Switch
+                checked={showDeleted}
+                onChange={(checked) => {
+                  setShowDeleted(checked);
+                  setPage(1);
+                }}
+              />
+              <span style={{ fontSize: 12, color: '#8a90a2' }}>
+                Показать удалённые
+              </span>
+            </Space>
+          )}
           {data && (
             <span style={{ marginLeft: 'auto', fontSize: 12, color: '#8a90a2' }}>
               Найдено: <b style={{ color: '#1D2130' }}>{data.total}</b>

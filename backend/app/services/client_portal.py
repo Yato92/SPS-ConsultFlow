@@ -96,6 +96,7 @@ def client_portal(db: Session, token: str) -> ClientPortalOut:
             .where(
                 Order.client_id == client.id,
                 Order.status != OrderStatus.CANCELLED.value,
+                Order.is_deleted.is_(False),
             )
             .options(selectinload(Order.documents))
             .order_by(Order.created_at.desc(), Order.id.desc())

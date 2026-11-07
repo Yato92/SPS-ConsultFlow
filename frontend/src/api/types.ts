@@ -59,6 +59,8 @@ export interface Order {
   updated_at: string;
   closed_at: string | null;
   is_overdue: boolean;
+  is_deleted: boolean;
+  deleted_at: string | null;
   client: Client;
   manager: UserBrief | null;
 }

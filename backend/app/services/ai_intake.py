@@ -427,7 +427,7 @@ def _find_duplicates(
     orders = db.scalars(
         select(Order)
         .options(selectinload(Order.client))
-        .where(Order.status != "cancelled")
+        .where(Order.status != "cancelled", Order.is_deleted.is_(False))
         .order_by(Order.created_at.desc())
         .limit(300)
     ).all()
@@ -496,7 +496,9 @@ def _recommend_team(db: Session, practice: str) -> list[dict[str, Any]]:
 
 def _sla_risk(db: Session, team: list[dict[str, Any]]) -> tuple[str, str]:
     manager_ids = [member["id"] for member in team]
-    query = select(func.count(Order.id)).where(Order.status.in_(ACTIVE_STATUSES))
+    query = select(func.count(Order.id)).where(
+        Order.status.in_(ACTIVE_STATUSES), Order.is_deleted.is_(False)
+    )
     if manager_ids:
         query = query.where(Order.manager_id.in_(manager_ids))
     active = db.scalar(query) or 0

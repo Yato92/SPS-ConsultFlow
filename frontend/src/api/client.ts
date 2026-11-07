@@ -108,6 +108,7 @@ export interface OrdersParams {
   page_size?: number;
   sort_by?: string;
   sort_dir?: 'asc' | 'desc';
+  include_deleted?: boolean;
 }
 
 export async function fetchOrders(params: OrdersParams): Promise<OrderList> {
@@ -171,6 +172,16 @@ export async function generateDocument(
   docType: string,
 ): Promise<{ id: number }> {
   const { data } = await api.post(`/orders/${orderId}/documents`, { doc_type: docType });
+  return data;
+}
+
+export async function deleteOrder(id: number): Promise<OrderDetail> {
+  const { data } = await api.delete<OrderDetail>(`/orders/${id}`);
+  return data;
+}
+
+export async function restoreOrder(id: number): Promise<OrderDetail> {
+  const { data } = await api.post<OrderDetail>(`/orders/${id}/restore`);
   return data;
 }
 

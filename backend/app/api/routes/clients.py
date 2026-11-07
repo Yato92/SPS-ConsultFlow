@@ -53,7 +53,7 @@ def list_clients(
                 func.coalesce(func.sum(Order.paid_amount), 0),
                 func.coalesce(func.sum(Order.expenses), 0),
             )
-            .where(Order.client_id.in_(ids))
+            .where(Order.client_id.in_(ids), Order.is_deleted.is_(False))
             .group_by(Order.client_id)
         ).all()
         for client_id, orders_count, paid, expenses in rows:

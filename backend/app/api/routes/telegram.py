@@ -23,7 +23,7 @@ def list_bot_users(
         db.execute(
             select(Client.telegram_id, func.count(Order.id))
             .join(Order, Order.client_id == Client.id)
-            .where(Client.telegram_id.is_not(None))
+            .where(Client.telegram_id.is_not(None), Order.is_deleted.is_(False))
             .group_by(Client.telegram_id)
         ).all()
     )

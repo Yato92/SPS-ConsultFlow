@@ -122,6 +122,8 @@ class OrderOut(ORMModel):
     updated_at: datetime
     closed_at: datetime | None = None
     is_overdue: bool = False
+    is_deleted: bool = False
+    deleted_at: datetime | None = None
     client: ClientOut
     manager: UserBrief | None = None
 

@@ -149,3 +149,47 @@ def test_admin_can_force_status(client, admin_headers):
     )
     assert response.status_code == 200
     assert response.json()["status"] == "closed"
+
+
+def test_soft_delete_hides_order_but_keeps_in_database(client, manager_headers):
+    client_row = _first_client(client, manager_headers)
+    created = client.post(
+        "/api/orders",
+        json={
+            "client_id": client_row["id"],
+            "practice": "legal",
+            "title": "Заказ для проверки мягкого удаления",
+            "amount": 15000,
+        },
+        headers=manager_headers,
+    )
+    assert created.status_code == 201, created.text
+    order_id = created.json()["id"]
+    number = created.json()["number"]
+
+    deleted = client.delete(f"/api/orders/{order_id}", headers=manager_headers)
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["is_deleted"] is True
+
+    # В обычном списке заявки больше нет.
+    visible = client.get(
+        f"/api/orders?q={number}", headers=manager_headers
+    ).json()
+    assert visible["total"] == 0
+    assert client.get(f"/api/orders/{order_id}", headers=manager_headers).status_code == 404
+
+    # Но запись осталась в базе: её видно в архиве.
+    archived = client.get(
+        "/api/orders?include_deleted=true", headers=manager_headers
+    ).json()
+    archived_order = next(
+        (item for item in archived["items"] if item["id"] == order_id), None
+    )
+    assert archived_order is not None
+    assert archived_order["is_deleted"] is True
+
+    restored = client.post(f"/api/orders/{order_id}/restore", headers=manager_headers)
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["is_deleted"] is False
+    visible_again = client.get(f"/api/orders?q={number}", headers=manager_headers).json()
+    assert visible_again["total"] == 1
