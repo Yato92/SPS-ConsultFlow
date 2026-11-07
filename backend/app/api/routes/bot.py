@@ -24,7 +24,9 @@ from app.models import BotUser, Client, Notification, Order, User
 from app.schemas import (
     BotAIIntakeIn,
     BotAIIntakeOut,
+    BotClientActionIn,
     BotClientLinkIn,
+    BotClientOrderOut,
     BotEstimateOut,
     BotLinkOut,
     BotOrderDetailOut,
@@ -40,6 +42,7 @@ from app.schemas import (
     NotificationOut,
     OrderEventOut,
 )
+from app.services import bot_client
 from app.services.ai_intake import analyze_intake
 from app.services.analytics import build_dashboard
 from app.services.client_portal import build_client_url
@@ -312,6 +315,84 @@ def client_order_detail(
     )
 
 
+@router.get("/orders/by-id/{order_id}", response_model=BotClientOrderOut)
+def client_order_by_id(
+    order_id: int,
+    telegram_id: int,
+    db: Session = Depends(get_db),
+) -> BotClientOrderOut:
+    """Карточка заявки для VK-бота: документы и доступные кнопки."""
+    bot_user = get_bot_user(db, telegram_id)
+    order = bot_client.load_order(db, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+
+    is_owner = order.client is not None and order.client.telegram_id == telegram_id
+    is_manager = bot_user.role == BotRole.MANAGER.value
+    if not (is_owner or is_manager):
+        raise HTTPException(status_code=403, detail="Нет доступа к этому заказу")
+    return BotClientOrderOut.model_validate(
+        bot_client.client_order_payload(order, manager_actions=is_manager)
+    )
+
+
+@router.post("/orders/{order_id}/client-action", response_model=BotClientOrderOut)
+def client_order_action(
+    order_id: int,
+    payload: BotClientActionIn,
+    db: Session = Depends(get_db),
+) -> BotClientOrderOut:
+    """Клиент читает документы, подписывает КП, оплачивает и подтверждает работу."""
+    bot_user = get_bot_user(db, payload.telegram_id)
+    order = bot_client.load_order(db, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+
+    is_owner = order.client is not None and order.client.telegram_id == payload.telegram_id
+    is_manager = bot_user.role == BotRole.MANAGER.value
+    if not (is_owner or is_manager):
+        raise HTTPException(status_code=403, detail="Нет доступа к этому заказу")
+
+    try:
+        bot_client.apply_client_action(db, order, payload.action, payload.value)
+    except bot_client.BotClientError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    refreshed = bot_client.load_order(db, order_id)
+    if refreshed is None:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+    return BotClientOrderOut.model_validate(
+        bot_client.client_order_payload(refreshed, manager_actions=is_manager)
+    )
+
+
+@router.post("/orders/{order_id}/manager-action", response_model=BotClientOrderOut)
+def manager_order_action(
+    order_id: int,
+    payload: BotClientActionIn,
+    db: Session = Depends(get_db),
+) -> BotClientOrderOut:
+    """Сотрудник меняет статус заявки кнопкой в VK-боте."""
+    bot_user = get_bot_user(db, payload.telegram_id)
+    ensure_manager(bot_user)
+
+    order = bot_client.load_order(db, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+
+    try:
+        bot_client.apply_manager_action(db, order, payload.action, payload.value)
+    except bot_client.BotClientError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    refreshed = bot_client.load_order(db, order_id)
+    if refreshed is None:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+    return BotClientOrderOut.model_validate(
+        bot_client.client_order_payload(refreshed, manager_actions=True)
+    )
+
+
 @router.get("/queue", response_model=list[BotOrderShort])
 def manager_queue(
     telegram_id: int,
@@ -469,6 +550,21 @@ def ack_notifications(payload: NotificationAckIn, db: Session = Depends(get_db))
     ).all()
     for item in items:
         item.status = "sent"
+        item.sent_at = utcnow()
+    db.commit()
+    return {"updated": len(items)}
+
+
+@router.post("/notifications/fail")
+def fail_notifications(payload: NotificationAckIn, db: Session = Depends(get_db)) -> dict:
+    """Помечает недоставленные уведомления, чтобы не повторять их бесконечно."""
+    if not payload.ids:
+        return {"updated": 0}
+    items = db.scalars(
+        select(Notification).where(Notification.id.in_(payload.ids))
+    ).all()
+    for item in items:
+        item.status = "failed"
         item.sent_at = utcnow()
     db.commit()
     return {"updated": len(items)}

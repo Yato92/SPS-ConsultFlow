@@ -313,6 +313,45 @@ class BotOrderDetailOut(BotOrderShort):
     events: list[OrderEventOut] = []
 
 
+class BotDocumentOut(BaseModel):
+    id: int
+    type: str
+    label: str
+    number: str
+    status: str
+    body: str | None = None
+    created_at: datetime
+
+
+class BotOrderActionOut(BaseModel):
+    code: str
+    label: str
+    value: str | None = None
+
+
+class BotClientOrderOut(BaseModel):
+    id: int
+    number: str
+    title: str
+    description: str | None = None
+    status: str
+    status_label: str
+    practice: str
+    practice_label: str
+    amount: float
+    paid_amount: float = 0
+    created_at: datetime
+    documents: list[BotDocumentOut] = []
+    actions: list[BotOrderActionOut] = []
+    manager_actions: list[BotOrderActionOut] = []
+
+
+class BotClientActionIn(BaseModel):
+    telegram_id: int
+    action: str = Field(min_length=2, max_length=32)
+    value: str | None = Field(default=None, max_length=4000)
+
+
 class BotAIIntakeIn(BaseModel):
     telegram_id: int
     text: str = Field(min_length=5, max_length=5000)

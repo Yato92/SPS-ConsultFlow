@@ -191,7 +191,7 @@ def help_text(is_manager: bool) -> str:
     if is_manager:
         return (
             "❓ Как работает VK-бот\n\n"
-            "• «Очередь заявок» — новые и требующие внимания заявки.\n"
+            "• «Очередь заявок» — откройте заявку и смените статус кнопкой.\n"
             "• «Прайс-лист» — ставки и SLA.\n"
             "• «Кабинет» — ваши заявки и документы по персональной ссылке.\n"
             "• Напишите вопрос — ответит ИИ-консультант.\n\n"
@@ -207,8 +207,10 @@ def help_text(is_manager: bool) -> str:
         "✨ «AI-заявка» — опишите задачу свободным текстом: ИИ сам извлечёт "
         "данные, определит практику, проверит дубликаты, оценит стоимость, "
         "подберёт команду и подготовит черновик КП.\n\n"
-        "Статус смотрите в «Мои заявки». Можно просто написать вопрос — "
-        "ответит ИИ-консультант.\n\n"
+        "Статус смотрите в «Мои заявки». Нажмите номер заявки — откроется "
+        "карточка: там можно прочитать документы, подписать КП, провести "
+        "тестовую оплату и подтвердить работу.\n\n"
+        "Можно просто написать вопрос — ответит ИИ-консультант.\n\n"
         "Команды: /start — меню, /cancel — отмена, /id — ваш VK ID."
     )
 
@@ -277,7 +279,15 @@ def analysis_text(data: dict[str, Any]) -> str:
 
 async def start_ai_intake(vk: VKAPI, user_id: int) -> None:
     session = _session(user_id)
-    session.update({"step": "ai_request", "data": {}})
+    session.update(
+        {
+            "step": "ai_request",
+            "data": {},
+            "active_order_id": None,
+            "client_actions": {},
+            "manager_actions": {},
+        }
+    )
     await send(
         vk,
         user_id,
@@ -354,7 +364,15 @@ async def show_menu(
 
 async def start_order(vk: VKAPI, user_id: int) -> None:
     session = _session(user_id)
-    session.update({"step": "practice", "data": {}})
+    session.update(
+        {
+            "step": "practice",
+            "data": {},
+            "active_order_id": None,
+            "client_actions": {},
+            "manager_actions": {},
+        }
+    )
     await send(
         vk,
         user_id,
@@ -388,13 +406,19 @@ async def show_orders(
             f"{item.get('title', '—')}\n"
             f"Сумма: {money(item.get('amount', 0))}\n"
         )
-    lines.append("Подробности и документы — в личном кабинете.")
+    lines.append("Нажмите номер заявки ниже — откроется карточка с действиями.")
     try:
         link = await api.client_link(-user_id)
-        lines.append(f"\n🖥 Личный кабинет:\n{link['url']}")
+        lines.append(f"\n🖥 Личный кабинет на сайте:\n{link['url']}")
     except APIError:
         pass
-    await send(vk, user_id, "\n".join(lines), keyboard=keyboards.main_menu(is_manager))
+    numbers = [str(item.get("number")) for item in items if item.get("number")]
+    await send(
+        vk,
+        user_id,
+        "\n".join(lines),
+        keyboard=keyboards.orders_list(numbers),
+    )
 
 
 async def show_client_cabinet(
@@ -445,8 +469,308 @@ async def show_queue(
             f"{item.get('title', '—')}\n"
             f"{money(item.get('amount', 0))}\n"
         )
-    lines.append("Открыть полную карточку и сменить статус — в дашборде.")
-    await send(vk, user_id, "\n".join(lines), keyboard=keyboards.main_menu(True))
+    lines.append("Нажмите номер заявки ниже, чтобы открыть карточку и сменить статус.")
+    numbers = [str(item.get("number")) for item in items if item.get("number")]
+    await send(
+        vk,
+        user_id,
+        "\n".join(lines),
+        keyboard=keyboards.orders_list(numbers),
+    )
+
+
+async def _find_order_id(
+    api: ConsultFlowAPI, user_id: int, number: str
+) -> int | None:
+    try:
+        # Менеджеру /orders отдаёт все заявки, клиенту — только его собственные.
+        items = await api.my_orders(-user_id, limit=50)
+    except APIError:
+        return None
+    for item in items:
+        if str(item.get("number")) == number:
+            return int(item.get("id") or 0) or None
+    return None
+
+
+def card_text(card: dict[str, Any]) -> str:
+    lines = [
+        f"📄 Заявка №{card.get('number', '—')}",
+        f"Статус: {card.get('status_label', card.get('status', '—'))}",
+        f"{card.get('title', '—')}",
+        "",
+        f"Направление: {card.get('practice_label', '—')}",
+        f"Сумма: {money(card.get('amount', 0))}",
+        f"Оплачено: {money(card.get('paid_amount', 0))}",
+    ]
+    if card.get("description"):
+        lines.extend(["", f"Описание: {card['description']}"])
+    documents = card.get("documents") or []
+    if documents:
+        lines.extend(["", "Документы:"])
+        for doc in documents:
+            lines.append(f"• {doc.get('label', 'Документ')} — {doc.get('status', '—')}")
+    lines.extend(
+        [
+            "",
+            "Выберите действие кнопкой ниже. "
+            "«Прочитать документы» покажет текст КП, договора и акта.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def documents_text(card: dict[str, Any]) -> str:
+    parts = [f"📄 Документы по заявке №{card.get('number', '—')}", ""]
+    documents = card.get("documents") or []
+    if not documents:
+        parts.append("Документы ещё не сформированы.")
+        return "\n".join(parts)
+    for doc in documents:
+        parts.extend(
+            [
+                f"=== {doc.get('label', 'Документ')} ({doc.get('status', '—')}) ===",
+                str(doc.get("body") or "Текст документа пока не готов."),
+                "",
+            ]
+        )
+    return "\n".join(parts)
+
+
+async def show_order_card(
+    vk: VKAPI,
+    api: ConsultFlowAPI,
+    user_id: int,
+    profile: dict[str, Any],
+    *,
+    order_id: int | None = None,
+    number: str | None = None,
+) -> None:
+    """Карточка заявки с кнопками клиента и сотрудника."""
+    is_manager = bool(profile.get("is_manager"))
+    if order_id is None and number:
+        order_id = await _find_order_id(api, user_id, number)
+    if order_id is None:
+        await send(
+            vk,
+            user_id,
+            "Заявка не найдена. Откройте «Мои заявки» и выберите её из списка.",
+            keyboard=keyboards.main_menu(is_manager),
+        )
+        return
+    try:
+        card = await api.client_order(order_id, -user_id)
+    except APIError as exc:
+        await send(vk, user_id, f"⚠️ {exc.message}", keyboard=keyboards.main_menu(is_manager))
+        return
+
+    state = _session(user_id)
+    state.update(
+        {
+            "step": None,
+            "active_order_id": order_id,
+            "active_order": card.get("number"),
+            "client_actions": {
+                str(item.get("label")): (str(item.get("code")), item.get("value"))
+                for item in card.get("actions") or []
+            },
+            "manager_actions": {
+                str(item.get("label")): (str(item.get("code")), item.get("value"))
+                for item in card.get("manager_actions") or []
+            },
+        }
+    )
+    await send(
+        vk,
+        user_id,
+        card_text(card),
+        keyboard=keyboards.order_actions(
+            card.get("actions"), card.get("manager_actions")
+        ),
+    )
+
+
+async def _reload_card(
+    vk: VKAPI, api: ConsultFlowAPI, user_id: int, profile: dict[str, Any]
+) -> None:
+    state = _session(user_id)
+    order_id = state.get("active_order_id")
+    if order_id:
+        await show_order_card(vk, api, user_id, profile, order_id=int(order_id))
+    else:
+        await show_orders(vk, api, user_id, bool(profile.get("is_manager")))
+
+
+async def execute_order_action(
+    vk: VKAPI,
+    api: ConsultFlowAPI,
+    user_id: int,
+    profile: dict[str, Any],
+    action: str,
+    value: str | None = None,
+) -> None:
+    state = _session(user_id)
+    order_id = state.get("active_order_id")
+    if not order_id:
+        await send(
+            vk,
+            user_id,
+            "Сначала откройте заявку в «Мои заявки».",
+            keyboard=keyboards.main_menu(bool(profile.get("is_manager"))),
+        )
+        return
+
+    is_manager_action = action in {
+        code for code, _ in (state.get("manager_actions") or {}).values()
+    }
+    try:
+        if is_manager_action:
+            card = await api.manager_action(order_id, -user_id, action, value)
+        else:
+            card = await api.client_action(order_id, -user_id, action, value)
+    except APIError as exc:
+        await send(vk, user_id, f"⚠️ {exc.message}")
+        await _reload_card(vk, api, user_id, profile)
+        return
+
+    success = {
+        "answer": "✅ Ответ отправлен сотруднику.",
+        "sign": "✅ КП подписано.",
+        "remarks": "✍️ Замечания отправлены сотруднику.",
+        "pay": "💳 Тестовая оплата прошла. Деньги не списываются.",
+        "confirm": "✅ Работа подтверждена, заявка закрыта.",
+        "status": "✅ Статус заявки обновлён.",
+    }.get(action)
+    if success:
+        await send(vk, user_id, success)
+    await show_order_card(vk, api, user_id, profile, order_id=order_id)
+
+
+async def handle_client_step(
+    vk: VKAPI,
+    api: ConsultFlowAPI,
+    user_id: int,
+    profile: dict[str, Any],
+    text: str,
+) -> bool:
+    """Шаги клиента в VK: ввод текста, подтверждение, кнопки карточки."""
+    state = _session(user_id)
+    lower = text.lower().strip()
+    step = state.get("step")
+
+    if step == "client_text":
+        if lower in {"отмена", "/cancel", "cancel", "назад"}:
+            state["step"] = None
+            state["pending_action"] = None
+            state["pending_value"] = None
+            await send(vk, user_id, "Ок, действие отменено.")
+            await _reload_card(vk, api, user_id, profile)
+            return True
+        action = str(state.get("pending_action") or "")
+        state["step"] = None
+        state["pending_action"] = None
+        state["pending_value"] = None
+        await execute_order_action(vk, api, user_id, profile, action, text)
+        return True
+
+    if step == "client_confirm":
+        action = str(state.get("pending_action") or "")
+        value = state.get("pending_value")
+        state["step"] = None
+        state["pending_action"] = None
+        state["pending_value"] = None
+        if lower.startswith(("подтверд", "да", "оплат", "✅")) or lower in {"ok", "ок"}:
+            await execute_order_action(vk, api, user_id, profile, action, value)
+        else:
+            await send(vk, user_id, "Ок, действие отменено.")
+            await _reload_card(vk, api, user_id, profile)
+        return True
+
+    label = text.strip()
+    for source in ("client_actions", "manager_actions"):
+        mapping = state.get(source) or {}
+        if label in mapping:
+            action, value = mapping[label]
+            if action in {"answer", "remarks"}:
+                state["step"] = "client_text"
+                state["pending_action"] = action
+                state["pending_value"] = value
+                prompt = (
+                    "Напишите ответ на уточнение одним сообщением."
+                    if action == "answer"
+                    else "Опишите замечания к КП одним сообщением."
+                )
+                await send(vk, user_id, prompt, keyboard=keyboards.back())
+                return True
+            if action in {"sign", "pay", "confirm", "status"}:
+                state["step"] = "client_confirm"
+                state["pending_action"] = action
+                state["pending_value"] = value
+                prompts = {
+                    "sign": "Подписать КП?",
+                    "pay": "Провести тестовую оплату? Деньги не списываются.",
+                    "confirm": "Подтвердить, что работа выполнена?",
+                    "status": f"Применить действие «{label}»?",
+                }
+                await send(
+                    vk,
+                    user_id,
+                    prompts.get(action, "Подтвердить действие?"),
+                    keyboard=keyboards.confirm(),
+                )
+                return True
+            if action == "read":
+                try:
+                    card = await api.client_order(int(state["active_order_id"]), -user_id)
+                except APIError as exc:
+                    await send(vk, user_id, f"⚠️ {exc.message}")
+                    return True
+                await send(vk, user_id, documents_text(card))
+                await show_order_card(
+                    vk, api, user_id, profile, order_id=int(state["active_order_id"])
+                )
+                return True
+            if action == "refresh":
+                await _reload_card(vk, api, user_id, profile)
+                return True
+
+    if label.startswith("📄 "):
+        number = label[2:].strip()
+        await show_order_card(vk, api, user_id, profile, number=number)
+        return True
+
+    candidate = label.lstrip("№ ").strip()
+    if candidate.upper().startswith("CF-"):
+        await show_order_card(vk, api, user_id, profile, number=candidate)
+        return True
+
+    # Текстовый запасной вариант, если в сообществе выключены кнопки.
+    if state.get("active_order_id"):
+        text_actions = (
+            ("подписать", "sign", "Подписать КП?"),
+            ("оплат", "pay", "Провести тестовую оплату? Деньги не списываются."),
+            ("подтверд", "confirm", "Подтвердить, что работа выполнена?"),
+        )
+        for marker, code, prompt in text_actions:
+            if marker in lower:
+                state["step"] = "client_confirm"
+                state["pending_action"] = code
+                state["pending_value"] = None
+                await send(vk, user_id, prompt, keyboard=keyboards.confirm())
+                return True
+        if "документ" in lower or "прочитать" in lower:
+            try:
+                card = await api.client_order(int(state["active_order_id"]), -user_id)
+            except APIError as exc:
+                await send(vk, user_id, f"⚠️ {exc.message}")
+                return True
+            await send(vk, user_id, documents_text(card))
+            await show_order_card(
+                vk, api, user_id, profile, order_id=int(state["active_order_id"])
+            )
+            return True
+
+    return False
 
 
 async def show_pricing(
@@ -506,7 +830,9 @@ async def create_order(
         f"Предварительная стоимость: {money(order.get('amount', 0))}\n"
         f"Расчёт: {money(estimate.get('rate', 0))}/час × {estimate.get('hours', 0):g} ч "
         f"× {estimate.get('multiplier', 1)}\n\n"
-        "Менеджер получил уведомление. Статус — в «Мои заявки»."
+        "Менеджер получил уведомление. Статус — в «Мои заявки».\n\n"
+        "Дальше всё можно делать прямо в VK: прочитать КП и документы, "
+        "подписать КП, провести тестовую оплату и подтвердить работу."
     )
     if data.get("kp"):
         text += "\n\n📄 Черновик КП сохранён в карточке заявки."
@@ -796,6 +1122,9 @@ async def handle_message(
         )
         return
 
+    if await handle_client_step(vk, api, user_id, profile, text):
+        return
+
     if _session(user_id).get("step"):
         handled = await handle_order_step(vk, api, user_id, profile, text)
         if handled:
@@ -842,6 +1171,7 @@ async def notification_worker(vk: VKAPI, api: ConsultFlowAPI, interval: float = 
         try:
             items = await api.pending_notifications(limit=20)
             sent: list[int] = []
+            failed: list[int] = []
             for item in items:
                 try:
                     recipient = int(item.get("recipient", ""))
@@ -850,14 +1180,40 @@ async def notification_worker(vk: VKAPI, api: ConsultFlowAPI, interval: float = 
                 if recipient >= 0:
                     # Положительные ID принадлежат Telegram; не трогаем их.
                     continue
+                keyboard = None
+                order_id = item.get("order_id")
+                if order_id:
+                    try:
+                        card = await api.client_order(int(order_id), recipient)
+                        number = card.get("number")
+                        if number:
+                            keyboard = keyboards.order_open(str(number))
+                    except (APIError, TypeError, ValueError) as exc:
+                        logger.warning(
+                            "VK notification %s: карточка недоступна: %s",
+                            item.get("id"),
+                            exc,
+                        )
                 try:
-                    await vk.send_message(abs(recipient), _clean(item.get("text", "")))
+                    await send(
+                        vk,
+                        abs(recipient),
+                        _clean(item.get("text", "")),
+                        keyboard=keyboard,
+                    )
                     sent.append(int(item["id"]))
                 except (VKError, KeyError, TypeError) as exc:
                     logger.warning("VK notification %s failed: %s", item.get("id"), exc)
+                    try:
+                        failed.append(int(item["id"]))
+                    except (KeyError, TypeError, ValueError):
+                        pass
             if sent:
                 await api.ack_notifications(sent)
                 logger.info("VK: доставлено уведомлений %s", len(sent))
+            if failed:
+                await api.fail_notifications(failed)
+                logger.info("VK: помечено недоставленных уведомлений %s", len(failed))
         except asyncio.CancelledError:
             raise
         except APIError as exc:

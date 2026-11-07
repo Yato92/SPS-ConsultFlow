@@ -102,7 +102,8 @@ def notify_client(db: Session, order: Order, header: str) -> None:
     text = (
         f"<b>{html.escape(header)}</b>\n"
         f"Заказ <b>{order.number}</b>: {html.escape(order.title)}\n"
-        f"Новый статус: {STATUS_LABELS.get(order.status, order.status)}"
+        f"Новый статус: {STATUS_LABELS.get(order.status, order.status)}\n"
+        "Откройте карточку кнопкой ниже: там документы и доступные действия."
     )
     _notify(db, order, recipients, text)
 

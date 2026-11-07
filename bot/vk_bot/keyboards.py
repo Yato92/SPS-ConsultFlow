@@ -28,16 +28,22 @@ def _keyboard(rows: list[list[dict]], *, one_time: bool = False) -> str:
 
 
 def main_menu(is_manager: bool = False) -> str:
-    rows: list[list[dict]] = [
-        [_button("📝 Оставить заявку", COLOR)],
-        [_button("✨ AI-заявка", COLOR)],
-        [_button("📋 Мои заявки"), _button("🤖 Спросить ИИ")],
-        [_button("💰 Прайс-лист"), _button("🖥 Кабинет")],
-    ]
+    """Главное меню. VK принимает не больше 5 рядов кнопок."""
     if is_manager:
-        rows.insert(1, [_button("📥 Очередь заявок", COLOR)])
-        rows.insert(4, [_button("🖥 Дашборд")])
-    rows.append([_button("❓ Помощь")])
+        rows: list[list[dict]] = [
+            [_button("📝 Оставить заявку", COLOR), _button("✨ AI-заявка", COLOR)],
+            [_button("📥 Очередь заявок", COLOR), _button("📋 Мои заявки")],
+            [_button("🤖 Спросить ИИ"), _button("🖥 Дашборд")],
+            [_button("💰 Прайс-лист"), _button("🖥 Кабинет")],
+            [_button("❓ Помощь")],
+        ]
+    else:
+        rows = [
+            [_button("📝 Оставить заявку", COLOR), _button("✨ AI-заявка", COLOR)],
+            [_button("📋 Мои заявки"), _button("🤖 Спросить ИИ")],
+            [_button("💰 Прайс-лист"), _button("🖥 Кабинет")],
+            [_button("❓ Помощь")],
+        ]
     return _keyboard(rows)
 
 
@@ -94,3 +100,34 @@ def confirm() -> str:
 
 def back() -> str:
     return _keyboard([[_button("🏠 Главное меню")]])
+
+
+def orders_list(numbers: list[str]) -> str:
+    """Кнопки «открыть заявку» для списка «Мои заявки» (не больше 4)."""
+    rows: list[list[dict]] = [
+        [_button(f"📄 {number}")] for number in numbers[:4]
+    ]
+    rows.append([_button("🏠 Главное меню")])
+    return _keyboard(rows)
+
+
+def order_open(number: str) -> str:
+    """Одна кнопка «открыть заявку» — для уведомления из VK."""
+    return _keyboard([[_button(f"📄 {number}")]])
+
+
+def order_actions(
+    actions: list[dict] | None,
+    manager_actions: list[dict] | None = None,
+) -> str:
+    """Кнопки действий в карточке заявки: клиентские и сотрудника."""
+    rows: list[list[dict]] = []
+    positive_codes = {"pay", "confirm", "sign", "status"}
+    for item in [*(actions or []), *(manager_actions or [])]:
+        label = str(item.get("label") or "Действие")
+        code = str(item.get("code") or "")
+        rows.append([_button(label, COLOR if code in positive_codes else SECONDARY)])
+        if len(rows) == 4:
+            break
+    rows.append([_button("🏠 Главное меню")])
+    return _keyboard(rows[:5])

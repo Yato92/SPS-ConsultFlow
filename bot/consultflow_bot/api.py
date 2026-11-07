@@ -90,6 +90,39 @@ class ConsultFlowAPI:
             "GET", f"/api/bot/orders/{number}", params={"telegram_id": telegram_id}
         )
 
+    async def client_order(self, order_id: int, telegram_id: int) -> dict:
+        return await self._call(
+            "GET",
+            f"/api/bot/orders/by-id/{order_id}",
+            params={"telegram_id": telegram_id},
+        )
+
+    async def client_action(
+        self,
+        order_id: int,
+        telegram_id: int,
+        action: str,
+        value: str | None = None,
+    ) -> dict:
+        return await self._call(
+            "POST",
+            f"/api/bot/orders/{order_id}/client-action",
+            json={"telegram_id": telegram_id, "action": action, "value": value},
+        )
+
+    async def manager_action(
+        self,
+        order_id: int,
+        telegram_id: int,
+        action: str,
+        value: str | None = None,
+    ) -> dict:
+        return await self._call(
+            "POST",
+            f"/api/bot/orders/{order_id}/manager-action",
+            json={"telegram_id": telegram_id, "action": action, "value": value},
+        )
+
     async def queue(self, telegram_id: int) -> list[dict]:
         return await self._call(
             "GET", "/api/bot/queue", params={"telegram_id": telegram_id}
@@ -129,3 +162,6 @@ class ConsultFlowAPI:
 
     async def ack_notifications(self, ids: list[int]) -> dict:
         return await self._call("POST", "/api/bot/notifications/ack", json={"ids": ids})
+
+    async def fail_notifications(self, ids: list[int]) -> dict:
+        return await self._call("POST", "/api/bot/notifications/fail", json={"ids": ids})
