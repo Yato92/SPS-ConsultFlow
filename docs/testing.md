@@ -67,7 +67,7 @@ npm run build
 | `test_date_filter` | фильтр периода сужает выборку |
 | `test_pricing_endpoint` | ставки, SLA и коэффициенты отдаются корректно |
 
-### 3.4 Telegram-бот и VK (`tests/test_bot.py`, 15 тестов)
+### 3.4 Telegram-бот и VK (`tests/test_bot.py`, 16 тестов)
 
 | Тест | Проверка |
 | --- | --- |
@@ -85,6 +85,7 @@ npm run build
 | `test_duplicate_order_from_bot_is_not_created_twice` | повторное нажатие/событие не создаёт дубль |
 | `test_client_link_opens_personal_portal` | ссылка из бота открывает только заявки этого клиента |
 | `test_vk_client_full_flow_with_buttons` | VK-клиент читает КП, подписывает, оплачивает и подтверждает работу; чужой заказ → `403` |
+| `test_vk_client_confirms_act_from_in_progress` | клиент подтверждает акт из статуса «В работе», заявка переходит в «Работа выполнена», сотрудник закрывает её |
 | `test_failed_notifications_are_not_retried` | недоставленные уведомления помечаются `failed` и не повторяются |
 
 ### 3.5 Расчёты (`tests/test_pricing.py`, 4 теста)
@@ -118,14 +119,14 @@ npm run build
 | `test_ai_intake_finds_duplicate_for_same_client` | fuzzy-поиск дубликата по заявкам того же клиента |
 | `test_create_order_with_ai_kp_document` | сохранение листа КП как `documents.doc_type = "proposal"` |
 
-**Итого: 50 автоматических тестов, все проходят.**
+**Итого: 51 автоматический тест, все проходят.**
 
 ## 4. Результаты
 
 ```
 $ cd backend && python -m pytest
 ...........................................                              [100%]
-50 passed
+51 passed
 ```
 
 Проверка фронтенда:

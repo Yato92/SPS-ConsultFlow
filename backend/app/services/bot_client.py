@@ -110,6 +110,14 @@ def _document_payload(order: Order) -> list[dict]:
     return result
 
 
+def _is_act_confirmed(order: Order) -> bool:
+    workflow = order.workflow
+    if workflow is not None and workflow.act_confirmed_at is not None:
+        return True
+    act = _latest_document(order, DocumentType.ACT.value)
+    return bool(act is not None and act.status == "signed")
+
+
 def available_client_actions(order: Order) -> list[dict]:
     """Кнопки клиента, доступные в текущем статусе заявки."""
     if order.status in {OrderStatus.CANCELLED.value}:
@@ -138,8 +146,9 @@ def available_client_actions(order: Order) -> list[dict]:
         )
 
     if (
-        order.status == OrderStatus.DONE.value
+        order.status in {OrderStatus.IN_PROGRESS.value, OrderStatus.DONE.value}
         and _has_document(order, DocumentType.ACT.value)
+        and not _is_act_confirmed(order)
     ):
         actions.append(
             {"code": "confirm", "label": CLIENT_ACTION_LABELS["confirm"], "value": None}
@@ -262,6 +271,7 @@ def apply_client_action(
                 OrderStatus.APPROVED.value,
                 actor_type=ActorType.USER.value,
                 comment="КП подписано клиентом в VK",
+                notify=False,
             )
         else:
             _add_event(order, "КП подписано клиентом в VK")
@@ -282,6 +292,7 @@ def apply_client_action(
             OrderStatus.REVISION.value,
             actor_type=ActorType.USER.value,
             comment="Замечания клиента из VK",
+            notify=False,
         )
         notify_managers(db, order, "Замечания клиента по КП (VK)")
         db.commit()
@@ -322,7 +333,23 @@ def apply_client_action(
             raise BotClientError(
                 "Акт ещё не сформирован. Дождитесь, когда сотрудник завершит работу."
             )
-        if order.status == OrderStatus.DONE.value:
+        if _is_act_confirmed(order):
+            raise BotClientError("Работа по этой заявке уже подтверждена.")
+        if order.status == OrderStatus.IN_PROGRESS.value:
+            # Клиент принимает работу: заявка переходит в «Работа выполнена»,
+            # а сотрудник получает уведомление и закрывает её.
+            change_status(
+                db,
+                order,
+                OrderStatus.DONE.value,
+                actor_type=ActorType.USER.value,
+                comment="Акт подтверждён клиентом в VK",
+                create_documents=False,
+                notify=False,
+            )
+            order = load_order(db, order.id) or order
+            act = _latest_document(order, DocumentType.ACT.value) or act
+        elif order.status == OrderStatus.DONE.value:
             change_status(
                 db,
                 order,
@@ -330,6 +357,7 @@ def apply_client_action(
                 actor_type=ActorType.USER.value,
                 comment="Работа подтверждена клиентом в VK",
                 create_documents=False,
+                notify=False,
             )
             order = load_order(db, order.id) or order
             act = _latest_document(order, DocumentType.ACT.value) or act

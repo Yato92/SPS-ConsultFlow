@@ -656,9 +656,18 @@ async def execute_order_action(
         "sign": "✅ КП подписано.",
         "remarks": "✍️ Замечания отправлены сотруднику.",
         "pay": "💳 Тестовая оплата прошла. Деньги не списываются.",
-        "confirm": "✅ Работа подтверждена, заявка закрыта.",
+        "confirm": "✅ Работа подтверждена, акт подписан.",
         "status": "✅ Статус заявки обновлён.",
     }.get(action)
+    if action == "confirm" and success:
+        status = str(card.get("status") or "")
+        if status == "closed":
+            success = "✅ Работа подтверждена, заявка закрыта."
+        else:
+            success = (
+                "✅ Работа подтверждена, акт подписан. "
+                "Сотрудник получил уведомление и закроет заявку."
+            )
     if success:
         await send(vk, user_id, success)
     await show_order_card(vk, api, user_id, profile, order_id=order_id)
@@ -1225,18 +1234,20 @@ async def notification_worker(vk: VKAPI, api: ConsultFlowAPI, interval: float = 
                         doc_text = document_message(card, doc_type)
                         if doc_text:
                             await send(vk, abs(recipient), doc_text)
+                    # Подтверждаем сразу, чтобы при сбое API уведомление
+                    # не отправилось повторно на следующем круге.
+                    await api.ack_notifications([int(item["id"])])
                     sent.append(int(item["id"]))
                 except (VKError, KeyError, TypeError) as exc:
                     logger.warning("VK notification %s failed: %s", item.get("id"), exc)
                     try:
+                        await api.fail_notifications([int(item["id"])])
                         failed.append(int(item["id"]))
-                    except (KeyError, TypeError, ValueError):
+                    except (APIError, KeyError, TypeError, ValueError):
                         pass
             if sent:
-                await api.ack_notifications(sent)
                 logger.info("VK: доставлено уведомлений %s", len(sent))
             if failed:
-                await api.fail_notifications(failed)
                 logger.info("VK: помечено недоставленных уведомлений %s", len(failed))
         except asyncio.CancelledError:
             raise

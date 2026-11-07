@@ -59,8 +59,22 @@ def _notify(
     *,
     channel: str = "telegram",
 ) -> None:
+    recent_after = utcnow() - timedelta(seconds=60)
     for recipient in dict.fromkeys(recipients):
         if not recipient:
+            continue
+        duplicate = db.scalar(
+            select(Notification)
+            .where(
+                Notification.order_id == order.id,
+                Notification.recipient == str(recipient),
+                Notification.text == text,
+                Notification.channel == channel,
+                Notification.created_at >= recent_after,
+            )
+            .limit(1)
+        )
+        if duplicate is not None:
             continue
         db.add(
             Notification(
@@ -223,6 +237,7 @@ def change_status(
     comment: str | None = None,
     force: bool = False,
     create_documents: bool = True,
+    notify: bool = True,
 ) -> Order:
     new_status = str(new_status)
     if order.status == new_status:
@@ -272,12 +287,13 @@ def change_status(
         DocumentType.CONTRACT.value: "Договор готов",
         DocumentType.ACT.value: "Акт сформирован",
     }.get(doc_type or "", "Статус заказа обновлён")
-    notify_client(
-        db,
-        order,
-        header,
-        document_type=doc_type if create_documents else None,
-    )
+    if notify:
+        notify_client(
+            db,
+            order,
+            header,
+            document_type=doc_type if create_documents else None,
+        )
     db.commit()
     db.refresh(order)
     return order

@@ -20,7 +20,8 @@ async def notification_worker(
         try:
             items = await api.pending_notifications(limit=20)
             if items:
-                sent: list[int] = []
+                sent = 0
+                failed = 0
                 for item in items:
                     try:
                         recipient = int(item["recipient"])
@@ -35,14 +36,22 @@ async def notification_worker(
                             item["text"],
                             disable_web_page_preview=True,
                         )
+                        # Подтверждаем сразу, чтобы не отправить повторно.
+                        await api.ack_notifications([int(item["id"])])
+                        sent += 1
                     except (TelegramAPIError, ValueError, TypeError) as exc:
                         logger.warning(
                             "Уведомление %s не доставлено: %s", item["id"], exc
                         )
-                    sent.append(int(item["id"]))
+                        try:
+                            await api.fail_notifications([int(item["id"])])
+                            failed += 1
+                        except (APIError, ValueError, TypeError):
+                            pass
                 if sent:
-                    await api.ack_notifications(sent)
-                    logger.info("Доставлено уведомлений: %s", len(sent))
+                    logger.info("Доставлено уведомлений: %s", sent)
+                if failed:
+                    logger.info("Не доставлено уведомлений: %s", failed)
         except asyncio.CancelledError:
             raise
         except APIError as exc:

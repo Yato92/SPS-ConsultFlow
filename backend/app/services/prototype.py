@@ -549,6 +549,7 @@ def send_proposal(
             OrderStatus.QUALIFIED.value,
             actor_type=ActorType.SYSTEM.value,
             comment="Заявка квалифицирована",
+            notify=False,
         )
         order = _load_order(db, order.id) or order
         order.workflow = workflow
@@ -587,6 +588,7 @@ def sign_proposal(db: Session, order: Order) -> PrototypeOrderOut:
             OrderStatus.APPROVED.value,
             actor_type=ActorType.SYSTEM.value,
             comment="КП подписано и сохранено",
+            notify=False,
         )
     else:
         _add_event(db, order, "КП подписано и сохранено")
@@ -609,6 +611,7 @@ def submit_remarks(
         OrderStatus.REVISION.value,
         actor_type=ActorType.SYSTEM.value,
         comment="Получены замечания",
+        notify=False,
     )
     notify_managers(db, order, "Замечания клиента по КП")
     db.commit()
@@ -725,6 +728,7 @@ def confirm_act(db: Session, order: Order) -> PrototypeOrderOut:
             actor_type=ActorType.SYSTEM.value,
             comment="Акт подтверждён, заказ завершён",
             create_documents=False,
+            notify=False,
         )
         order = _load_order(db, order.id) or order
         acts = [

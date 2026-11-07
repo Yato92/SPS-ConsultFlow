@@ -181,6 +181,18 @@ def test_staff_prototype_forms_act_and_notifies_client(client, bot_headers):
     assert act_notifications, "Клиенту должен уйти акт в VK"
     assert "Акт" in act_notifications[0]["text"]
 
+    # Повторное формирование акта не должно дублировать уведомление.
+    repeated = client.post(f"/api/prototype/orders/{order_id}/act")
+    assert repeated.status_code == 200
+    again = client.get("/api/bot/notifications", headers=bot_headers).json()
+    act_notifications = [
+        item
+        for item in again
+        if item.get("order_id") == order_id
+        and item.get("channel") == "telegram:act"
+    ]
+    assert len(act_notifications) == 1
+
 
 def test_full_prototype_lifecycle(client):
     created = _create(client, "lifecycle@example.ru")

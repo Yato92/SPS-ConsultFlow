@@ -350,6 +350,85 @@ def test_vk_client_full_flow_with_buttons(client, bot_headers):
     assert foreign.status_code == 403
 
 
+def test_vk_client_confirms_act_from_in_progress(client, bot_headers):
+    """Клиент подтверждает акт, пока заявка «В работе», и сотрудник её закрывает."""
+    vk_client = -555000779
+    manager = 700000002
+    client.post(
+        "/api/bot/users",
+        headers=bot_headers,
+        json={"telegram_id": vk_client, "full_name": "ВК Клиент Акта"},
+    )
+    created = client.post(
+        "/api/bot/orders",
+        headers=bot_headers,
+        json={
+            "telegram_id": vk_client,
+            "practice": "it",
+            "title": "Заявка для подтверждения акта",
+            "description": "Клиент принимает работу из статуса «В работе»",
+            "hours": 12,
+            "complexity": "basic",
+        },
+    )
+    assert created.status_code == 201, created.text
+    order_id = created.json()["id"]
+
+    for target in ("qualified", "proposal", "approved", "contract", "in_progress"):
+        changed = client.post(
+            f"/api/bot/orders/{order_id}/manager-action",
+            headers=bot_headers,
+            json={"telegram_id": manager, "action": "status", "value": target},
+        )
+        assert changed.status_code == 200, changed.text
+
+    act = client.post(f"/api/prototype/orders/{order_id}/act")
+    assert act.status_code == 200, act.text
+
+    card = client.get(
+        f"/api/bot/orders/by-id/{order_id}",
+        headers=bot_headers,
+        params={"telegram_id": vk_client},
+    ).json()
+    assert "confirm" in {item["code"] for item in card["actions"]}
+
+    confirmed = client.post(
+        f"/api/bot/orders/{order_id}/client-action",
+        headers=bot_headers,
+        json={"telegram_id": vk_client, "action": "confirm"},
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    assert confirmed.json()["status"] == "done"
+    assert any(
+        doc["type"] == "act" and doc["status"] == "signed"
+        for doc in confirmed.json()["documents"]
+    )
+    assert "confirm" not in {
+        item["code"]
+        for item in client.get(
+            f"/api/bot/orders/by-id/{order_id}",
+            headers=bot_headers,
+            params={"telegram_id": vk_client},
+        ).json()["actions"]
+    }
+
+    notifications = client.get("/api/bot/notifications", headers=bot_headers).json()
+    assert any(
+        item.get("order_id") == order_id
+        and item.get("recipient") == str(manager)
+        and "подтвердил работу" in item.get("text", "")
+        for item in notifications
+    )
+
+    closed = client.post(
+        f"/api/bot/orders/{order_id}/manager-action",
+        headers=bot_headers,
+        json={"telegram_id": manager, "action": "status", "value": "closed"},
+    )
+    assert closed.status_code == 200, closed.text
+    assert closed.json()["status"] == "closed"
+
+
 def test_failed_notifications_are_not_retried(client, bot_headers):
     created = client.post(
         "/api/bot/orders",
