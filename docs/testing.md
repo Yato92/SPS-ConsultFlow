@@ -99,7 +99,7 @@ npm run build
 | `test_estimate_minimum_hours` | минимум 1 час при нулевом вводе |
 | `test_sla_defaults` | SLA по направлениям и значение по умолчанию |
 
-### 3.6 Прототип (`tests/test_prototype.py`, 9 тестов)
+### 3.6 Прототип (`tests/test_prototype.py`, 10 тестов)
 
 | Тест | Проверка |
 | --- | --- |
@@ -112,6 +112,7 @@ npm run build
 | `test_remarks_create_revision_and_second_proposal` | замечания, доработка и КП версии 2 |
 | `test_invalid_action_returns_bad_request` | нельзя подписать КП до отправки и договор до подписи |
 | `test_seed_idempotent` | повторный seed не дублирует демо-заявки |
+| `test_bulk_soft_delete_in_prototype_keeps_database_rows` | пакетное скрытие заявок в прототипе: из ленты исчезают, в базе остаются, возвращаются из архива |
 
 ### 3.7 ИИ-разбор заявки (`tests/test_ai_intake.py`, 3 теста)
 
@@ -121,14 +122,14 @@ npm run build
 | `test_ai_intake_finds_duplicate_for_same_client` | fuzzy-поиск дубликата по заявкам того же клиента |
 | `test_create_order_with_ai_kp_document` | сохранение листа КП как `documents.doc_type = "proposal"` |
 
-**Итого: 53 автоматических теста, все проходят.**
+**Итого: 54 автоматических теста, все проходят.**
 
 ## 4. Результаты
 
 ```
 $ cd backend && python -m pytest
 ...........................................                              [100%]
-53 passed
+54 passed
 ```
 
 Проверка фронтенда:

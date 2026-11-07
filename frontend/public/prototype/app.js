@@ -65,7 +65,9 @@ const state = {
   practices: PRACTICES,
   consultants: CONSULTANTS,
   requests: [],
-  detail: null
+  detail: null,
+  selected: [],
+  showDeleted: false
 };
 
 /* ---------- helpers ---------- */
@@ -112,9 +114,12 @@ async function load(orderId) {
   // Сотруднику показываем и реальные заявки из VK/Telegram, клиенту — только
   // демонстрационную ленту, чтобы не раскрывать чужие данные.
   if (state.role === 'staff') params.set('include_external', 'true');
+  if (state.role === 'staff' && state.showDeleted) params.set('include_deleted', 'true');
   const query = params.toString() ? `?${params.toString()}` : '';
   const data = await api(`/bootstrap${query}`);
   state.requests = data.orders || [];
+  state.selected = state.selected.filter((id) =>
+    state.requests.some((item) => item.id === id));
   state.practices = (data.practices || []).map((item) => [item.value, item.label]);
   state.consultants = data.consultants || CONSULTANTS;
   state.detail = data.current || state.requests[0] || null;
@@ -183,6 +188,7 @@ function renderHeader() {
 function filteredRequests() {
   const query = state.search.trim().toLowerCase();
   return state.requests.filter((request) => {
+    if (state.showDeleted ? !request.isDeleted : request.isDeleted) return false;
     if (state.filter !== 'all' && request.status !== state.filter) return false;
     if (!query) return true;
     return [request.number, request.company, request.contact, request.service]
@@ -198,8 +204,11 @@ function renderTable() {
     return `<div class="card"><div class="empty"><b>Ничего не найдено</b>Измените поисковый запрос или фильтр статуса.</div></div>`;
   }
   const rows = items.map((request) => `
-    <tr data-action="open" data-id="${request.id}">
-      <td><span class="num">№${esc(request.number)}</span></td>
+    <tr class="${request.isDeleted ? 'row-deleted' : ''}" ${request.isDeleted ? '' : `data-action="open" data-id="${request.id}"`}>
+      <td class="select-cell" data-action="toggle-select" data-id="${request.id}">
+        <input class="row-check" type="checkbox" ${state.selected.includes(request.id) ? 'checked' : ''} aria-label="Выбрать заявку №${esc(request.number)}">
+      </td>
+      <td><span class="num">№${esc(request.number)}</span>${request.isDeleted ? '<span class="archive-tag">в архиве</span>' : ''}</td>
       <td>
         <div class="client-cell">
           <span class="avatar-sm">${esc(initials(request.company.replace(/[«»]/g, '')))}</span>
@@ -221,6 +230,7 @@ function renderTable() {
       <table class="requests">
         <thead>
           <tr>
+            <th class="select-cell"></th>
             <th>Номер</th>
             <th>Клиент</th>
             <th>Услуга</th>
@@ -256,8 +266,22 @@ function renderList() {
         <input id="search" type="search" placeholder="Поиск по номеру, клиенту или услуге" value="${esc(state.search)}" autocomplete="off">
       </div>
       <select class="select" id="status-filter" aria-label="Фильтр по статусу">${options}</select>
+      <label class="toolbar-toggle">
+        <input type="checkbox" id="show-deleted" ${state.showDeleted ? 'checked' : ''}>
+        Показать удалённые
+      </label>
       <span class="toolbar-count" id="list-count">${count} из ${state.requests.length} заявок</span>
     </div>
+
+    ${state.selected.length ? `
+    <div class="bulk-bar">
+      <b>Выбрано: ${state.selected.length}</b>
+      <button class="btn ${state.showDeleted ? 'btn-primary' : 'btn-danger'}" data-action="${state.showDeleted ? 'bulk-restore' : 'bulk-delete'}">
+        ${state.showDeleted ? 'Вернуть выбранные' : 'Удалить выбранные'}
+      </button>
+      <button class="btn btn-ghost" data-action="clear-selection">Снять выбор</button>
+      <span class="bulk-note">${state.showDeleted ? 'Заявки снова появятся в работе.' : 'Из базы данных ничего не удаляется.'}</span>
+    </div>` : ''}
 
     <div id="table-area">${renderTable()}</div>
   </div>`;
@@ -912,6 +936,50 @@ async function handleAction(action, dataset) {
       render();
       break;
 
+    case 'toggle-select': {
+      const id = Number(dataset.id);
+      state.selected = state.selected.includes(id)
+        ? state.selected.filter((item) => item !== id)
+        : [...state.selected, id];
+      render();
+      break;
+    }
+
+    case 'clear-selection':
+      state.selected = [];
+      render();
+      break;
+
+    case 'bulk-delete': {
+      if (!state.selected.length) return;
+      if (!window.confirm(`Удалить выбранные заявки (${state.selected.length})? Они исчезнут из списка, но останутся в базе данных.`)) return;
+      try {
+        await api('/orders/bulk-delete', { method: 'POST', body: { ids: state.selected } });
+        state.selected = [];
+        state.view = 'list';
+        await load(state.activeId);
+        render();
+        toast('Заявки скрыты из списка, записи сохранены в базе');
+      } catch (error) {
+        toast(error.message);
+      }
+      break;
+    }
+
+    case 'bulk-restore': {
+      if (!state.selected.length) return;
+      try {
+        await api('/orders/bulk-restore', { method: 'POST', body: { ids: state.selected } });
+        state.selected = [];
+        await load(state.activeId);
+        render();
+        toast('Заявки возвращены из архива');
+      } catch (error) {
+        toast(error.message);
+      }
+      break;
+    }
+
     case 'reload':
       state.ready = false;
       state.error = null;
@@ -1152,6 +1220,13 @@ function bindListControls() {
     if (area) area.innerHTML = renderTable();
     const count = document.getElementById('list-count');
     if (count) count.textContent = `${filteredRequests().length} из ${state.requests.length} заявок`;
+  });
+
+  const showDeleted = document.getElementById('show-deleted');
+  showDeleted?.addEventListener('change', async () => {
+    state.showDeleted = showDeleted.checked;
+    state.selected = [];
+    await reload(state.showDeleted ? null : state.activeId);
   });
 }
 

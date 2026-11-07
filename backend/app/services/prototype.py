@@ -36,6 +36,7 @@ from app.schemas import (
     PrototypeRemarksIn,
 )
 from app.services.orders import (
+    audit,
     change_status,
     create_document_record,
     create_order,
@@ -296,6 +297,7 @@ def serialize_order(
         paid_at=paid_at,
         payment_last4=payment_last4,
         practice_confirmed=workflow.practice_confirmed,
+        is_deleted=order.is_deleted,
         history=_history(order),
         documents=_document_list(order, workflow),
     )
@@ -312,7 +314,9 @@ def is_demo_order(db: Session, order: Order) -> bool:
     return bool(client and order.client_id == client.id)
 
 
-def demo_orders(db: Session, include_external: bool = False) -> list[Order]:
+def demo_orders(
+    db: Session, include_external: bool = False, include_deleted: bool = False
+) -> list[Order]:
     client = _demo_client(db)
     conditions = [Order.source == "prototype"]
     if include_external:
@@ -321,12 +325,14 @@ def demo_orders(db: Session, include_external: bool = False) -> list[Order]:
         conditions.append(Order.source.in_(("vk", "telegram")))
     if client is not None:
         conditions.append(Order.client_id == client.id)
+    filters = [Order.status != OrderStatus.CANCELLED.value]
+    if not include_deleted:
+        filters.append(Order.is_deleted.is_(False))
     return list(
         db.scalars(
             select(Order)
             .where(
-                Order.status != OrderStatus.CANCELLED.value,
-                Order.is_deleted.is_(False),
+                *filters,
                 or_(*conditions),
             )
             .options(
@@ -345,8 +351,11 @@ def bootstrap(
     db: Session,
     order_id: int | None = None,
     include_external: bool = False,
+    include_deleted: bool = False,
 ) -> PrototypeBootstrapOut:
-    orders = demo_orders(db, include_external=include_external)
+    orders = demo_orders(
+        db, include_external=include_external, include_deleted=include_deleted
+    )
     serialized = [serialize_order(db, order) for order in orders]
     current = None
     if serialized:
@@ -362,6 +371,34 @@ def bootstrap(
         ],
         consultants=PROTOTYPE_CONSULTANTS,
     )
+
+
+def bulk_set_deleted(db: Session, ids: list[int], *, deleted: bool) -> list[int]:
+    """Мягко скрывает или возвращает несколько заявок прототипа."""
+    changed: list[int] = []
+    for order_id in ids:
+        order = _load_order(db, order_id)
+        if order is None:
+            continue
+        if not is_demo_order(db, order) and order.source not in {"vk", "telegram"}:
+            continue
+        if order.is_deleted == deleted:
+            continue
+        order.is_deleted = deleted
+        order.deleted_at = utcnow() if deleted else None
+        order.deleted_by = None
+        order.updated_at = utcnow()
+        audit(
+            db,
+            "order.soft_deleted" if deleted else "order.restored",
+            actor_type=ActorType.SYSTEM.value,
+            entity="order",
+            entity_id=order.id,
+            meta={"number": order.number, "bulk": True, "prototype": True},
+        )
+        changed.append(order.id)
+    db.commit()
+    return changed
 
 
 def get_order(db: Session, order_id: int) -> Order:

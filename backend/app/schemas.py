@@ -551,6 +551,7 @@ class PrototypeOrderOut(BaseModel):
     paid_at: datetime | None = Field(default=None, alias="paidAt")
     payment_last4: str | None = Field(default=None, alias="paymentLast4")
     practice_confirmed: bool = Field(alias="practiceConfirmed")
+    is_deleted: bool = Field(default=False, alias="isDeleted")
     history: list[PrototypeHistoryOut]
     documents: list[PrototypeDocumentOut]
 

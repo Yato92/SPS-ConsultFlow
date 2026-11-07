@@ -505,7 +505,10 @@ Access-токен — JWT (HS256), срок 12 часов. Magic-link — JWT т
 | Метод | Путь | Назначение |
 | --- | --- | --- |
 | `GET` | `/prototype/bootstrap?order_id=...&include_external=true` | список заявок; `include_external=true` добавляет VK/Telegram-заявки для режима «Сотрудник» |
+| `GET` | `/prototype/bootstrap?include_deleted=true` | добавляет в список архив удалённых заявок |
 | `POST` | `/prototype/orders` | создать заявку |
+| `POST` | `/prototype/orders/bulk-delete` | мягко скрыть несколько заявок (записи остаются в базе) |
+| `POST` | `/prototype/orders/bulk-restore` | вернуть несколько заявок из архива |
 | `POST` | `/prototype/orders/{id}/clarify` | задать вопрос клиенту |
 | `POST` | `/prototype/orders/{id}/answer` | ответ клиента на уточнение |
 | `POST` | `/prototype/orders/{id}/proposal` | сформировать и отправить КП |

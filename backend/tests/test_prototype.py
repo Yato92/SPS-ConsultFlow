@@ -371,3 +371,37 @@ def test_seed_idempotent(client):
         assert seed_prototype(db) is False
         count = client.get("/api/prototype/orders").json()
     assert len(count) >= 4
+
+
+def test_bulk_soft_delete_in_prototype_keeps_database_rows(client):
+    first = _create(client, "bulk-1@example.ru")
+    second = _create(client, "bulk-2@example.ru")
+    ids = [first["id"], second["id"]]
+
+    deleted = client.post(
+        "/api/prototype/orders/bulk-delete", json={"ids": ids}
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["updated"] == 2
+
+    visible = client.get("/api/prototype/bootstrap").json()["orders"]
+    visible_ids = {item["id"] for item in visible}
+    assert not set(ids) & visible_ids
+
+    archived = client.get(
+        "/api/prototype/bootstrap?include_deleted=true"
+    ).json()["orders"]
+    archived_by_id = {item["id"]: item for item in archived}
+    for order_id in ids:
+        assert archived_by_id[order_id]["isDeleted"] is True
+
+    # Удалённую заявку нельзя открыть, но запись остаётся в базе.
+    assert client.get(f"/api/prototype/orders/{ids[0]}").status_code == 400
+
+    restored = client.post(
+        "/api/prototype/orders/bulk-restore", json={"ids": ids}
+    )
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["updated"] == 2
+    visible_again = client.get("/api/prototype/bootstrap").json()["orders"]
+    assert set(ids) <= {item["id"] for item in visible_again}

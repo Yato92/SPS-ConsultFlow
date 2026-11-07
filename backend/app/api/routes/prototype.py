@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.schemas import (
+    OrderBulkIn,
+    OrderBulkOut,
     PrototypeAnswerIn,
     PrototypeBootstrapOut,
     PrototypeClarifyIn,
@@ -41,20 +43,45 @@ def _error(exc: service.PrototypeError) -> HTTPException:
 def bootstrap(
     order_id: int | None = Query(default=None, ge=1),
     include_external: bool = Query(default=False),
+    include_deleted: bool = Query(default=False),
     db: Session = Depends(get_db),
 ) -> PrototypeBootstrapOut:
-    return service.bootstrap(db, order_id, include_external=include_external)
+    return service.bootstrap(
+        db,
+        order_id,
+        include_external=include_external,
+        include_deleted=include_deleted,
+    )
 
 
 @router.get("/orders", response_model=list[PrototypeOrderOut])
 def list_orders(
     include_external: bool = Query(default=False),
+    include_deleted: bool = Query(default=False),
     db: Session = Depends(get_db),
 ) -> list[PrototypeOrderOut]:
     return [
         service.serialize_order(db, order)
-        for order in service.demo_orders(db, include_external=include_external)
+        for order in service.demo_orders(
+            db, include_external=include_external, include_deleted=include_deleted
+        )
     ]
+
+
+@router.post("/orders/bulk-delete", response_model=OrderBulkOut)
+def bulk_delete(
+    payload: OrderBulkIn, db: Session = Depends(get_db)
+) -> OrderBulkOut:
+    ids = service.bulk_set_deleted(db, payload.ids, deleted=True)
+    return OrderBulkOut(updated=len(ids), ids=ids)
+
+
+@router.post("/orders/bulk-restore", response_model=OrderBulkOut)
+def bulk_restore(
+    payload: OrderBulkIn, db: Session = Depends(get_db)
+) -> OrderBulkOut:
+    ids = service.bulk_set_deleted(db, payload.ids, deleted=False)
+    return OrderBulkOut(updated=len(ids), ids=ids)
 
 
 @router.get("/orders/{order_id}", response_model=PrototypeOrderOut)

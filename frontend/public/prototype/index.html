@@ -149,6 +149,25 @@
   table.requests tr:last-child td{border-bottom:0}
   table.requests tbody tr{cursor:pointer;transition:background .12s}
   table.requests tbody tr:hover{background:#F8FAFF}
+  table.requests .select-cell{width:38px;padding-right:0}
+  table.requests th.select-cell{padding-right:0}
+  .row-check{width:16px;height:16px;accent-color:var(--blue);cursor:pointer;display:block}
+  tr.row-deleted{opacity:.6}
+  tr.row-deleted td{background:#FAFAFB}
+  .archive-tag{
+    margin-left:8px;padding:2px 7px;border-radius:20px;background:#EEF1F5;color:#667085;
+    font-size:10.5px;font-weight:600;vertical-align:middle;
+  }
+  .toolbar-toggle{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#667085;white-space:nowrap;cursor:pointer}
+  .toolbar-toggle input{width:15px;height:15px;accent-color:var(--blue);cursor:pointer}
+  .bulk-bar{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;
+    background:var(--blue-soft);border:1px solid #D9E1FF;border-radius:10px;font-size:13px;
+  }
+  .bulk-bar b{font-weight:650}
+  .bulk-note{font-size:12px;color:#667085}
+  .btn-danger{background:#DC2626;color:#fff}
+  .btn-danger:hover{background:#B91C1C}
   .num{font-weight:650;font-variant-numeric:tabular-nums;color:var(--text)}
   .client-cell{display:flex;align-items:center;gap:10px;min-width:0}
   .avatar-sm{
