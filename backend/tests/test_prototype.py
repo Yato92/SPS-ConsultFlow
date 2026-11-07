@@ -77,6 +77,53 @@ def test_bootstrap_can_include_vk_orders_for_staff(client, bot_headers):
     assert number in [item["number"] for item in with_external.json()["orders"]]
 
 
+def test_staff_prototype_sends_kp_for_vk_order(client, bot_headers):
+    """Сотрудник отправляет КП по VK-заявке, клиенту уходит уведомление."""
+    telegram_id = 555000444
+    client.post(
+        "/api/bot/users",
+        headers=bot_headers,
+        json={"telegram_id": telegram_id, "full_name": "ВК Клиент КП"},
+    )
+    created = client.post(
+        "/api/bot/orders",
+        headers=bot_headers,
+        json={
+            "telegram_id": telegram_id,
+            "practice": "legal",
+            "title": "VK-заявка для КП из прототипа",
+            "description": "Проверка отправки КП сотрудником",
+            "hours": 8,
+            "complexity": "basic",
+        },
+    )
+    assert created.status_code == 201, created.text
+    order_id = created.json()["id"]
+
+    proposal = client.post(
+        f"/api/prototype/orders/{order_id}/proposal",
+        json={
+            "solution": "Разработаем регламент и обучим команду",
+            "cost": 55000,
+            "days": 7,
+            "sla": "Ответ в течение 1 рабочего дня",
+            "consultant": "Анна Смирнова",
+        },
+    )
+    assert proposal.status_code == 200, proposal.text
+    assert proposal.json()["status"] == "sent"
+    assert proposal.json()["proposalVersion"] == 1
+
+    notifications = client.get("/api/bot/notifications", headers=bot_headers).json()
+    client_notifications = [
+        item
+        for item in notifications
+        if item.get("order_id") == order_id
+        and item.get("recipient") == str(telegram_id)
+    ]
+    assert client_notifications, "Клиенту должно уйти уведомление о новом статусе"
+
+
 def test_full_prototype_lifecycle(client):
     created = _create(client, "lifecycle@example.ru")
     order_id = created["id"]
