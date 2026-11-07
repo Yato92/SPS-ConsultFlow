@@ -39,6 +39,7 @@ from app.services.orders import (
     change_status,
     create_document_record,
     create_order,
+    notify_client,
     notify_managers,
     update_order_fields,
 )
@@ -590,6 +591,8 @@ def sign_proposal(db: Session, order: Order) -> PrototypeOrderOut:
     else:
         _add_event(db, order, "КП подписано и сохранено")
         db.commit()
+    notify_managers(db, order, "Клиент подписал КП")
+    db.commit()
     return serialize_order(db, _load_order(db, order.id) or order)
 
 
@@ -647,10 +650,19 @@ def form_contract(db: Session, order: Order) -> PrototypeOrderOut:
         raise PrototypeError("Договор можно сформировать после подписания КП")
     workflow = ensure_workflow(db, order)
     workflow.contract_at = workflow.contract_at or utcnow()
+    created = False
     if not any(
         doc.doc_type == DocumentType.CONTRACT.value for doc in order.documents
     ):
         create_document_record(db, order, DocumentType.CONTRACT.value)
+        created = True
+    if created and order.status != OrderStatus.CONTRACT.value:
+        notify_client(
+            db,
+            order,
+            "Договор готов",
+            document_type=DocumentType.CONTRACT.value,
+        )
     db.commit()
     return serialize_order(db, _load_order(db, order.id) or order)
 
@@ -683,11 +695,20 @@ def form_act(db: Session, order: Order) -> PrototypeOrderOut:
     }:
         raise PrototypeError("Акт формируется только после начала работы")
     workflow = ensure_workflow(db, order)
+    created = False
     if not any(doc.doc_type == DocumentType.ACT.value for doc in order.documents):
         create_document_record(db, order, DocumentType.ACT.value)
         order = _load_order(db, order.id) or order
         workflow = ensure_workflow(db, order)
+        created = True
     workflow.act_at = workflow.act_at or utcnow()
+    if created:
+        notify_client(
+            db,
+            order,
+            "Акт готов к подтверждению",
+            document_type=DocumentType.ACT.value,
+        )
     db.commit()
     return serialize_order(db, _load_order(db, order.id) or order)
 
@@ -715,6 +736,7 @@ def confirm_act(db: Session, order: Order) -> PrototypeOrderOut:
     acts[-1].status = "signed"
     workflow = ensure_workflow(db, order)
     workflow.act_confirmed_at = workflow.act_confirmed_at or utcnow()
+    notify_managers(db, order, "Клиент подтвердил акт")
     db.commit()
     return serialize_order(db, _load_order(db, order.id) or order)
 

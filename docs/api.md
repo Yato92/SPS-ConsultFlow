@@ -443,7 +443,9 @@ Access-токен — JWT (HS256), срок 12 часов. Magic-link — JWT т
 
 ### `GET /bot/notifications?limit=50`
 
-Недоставленные уведомления (outbox).
+Недоставленные уведомления (outbox). Поле `channel` равно `telegram`, либо
+`telegram:<тип документа>` — VK-бот по этому значению досылает КП, договор или
+акт сразу в чат.
 
 ### `POST /bot/notifications/ack`
 

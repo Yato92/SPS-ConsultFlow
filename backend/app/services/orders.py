@@ -51,14 +51,21 @@ def next_order_number(db: Session) -> str:
     return f"CF-{year}-{last_id + 1:04d}"
 
 
-def _notify(db: Session, order: Order, recipients: list[str], text: str) -> None:
+def _notify(
+    db: Session,
+    order: Order,
+    recipients: list[str],
+    text: str,
+    *,
+    channel: str = "telegram",
+) -> None:
     for recipient in dict.fromkeys(recipients):
         if not recipient:
             continue
         db.add(
             Notification(
                 order_id=order.id,
-                channel="telegram",
+                channel=channel,
                 recipient=str(recipient),
                 text=text,
                 status="pending",
@@ -93,7 +100,9 @@ def notify_managers(db: Session, order: Order, header: str) -> None:
     _notify(db, order, recipients, text)
 
 
-def notify_client(db: Session, order: Order, header: str) -> None:
+def notify_client(
+    db: Session, order: Order, header: str, *, document_type: str | None = None
+) -> None:
     recipients: list[str] = []
     if order.client and order.client.telegram_id:
         recipients.append(str(order.client.telegram_id))
@@ -105,7 +114,9 @@ def notify_client(db: Session, order: Order, header: str) -> None:
         f"Новый статус: {STATUS_LABELS.get(order.status, order.status)}\n"
         "Откройте карточку кнопкой ниже: там документы и доступные действия."
     )
-    _notify(db, order, recipients, text)
+    # document_type подсказывает VK-боту, какой документ отправить сразу в чат.
+    channel = f"telegram:{document_type}" if document_type else "telegram"
+    _notify(db, order, recipients, text, channel=channel)
 
 
 def create_order(
@@ -256,7 +267,17 @@ def change_status(
             db, order, doc_type, actor_type=actor_type, actor_id=actor_id, commit=False
         )
 
-    notify_client(db, order, "Статус заказа обновлён")
+    header = {
+        DocumentType.PROPOSAL.value: "КП отправлено",
+        DocumentType.CONTRACT.value: "Договор готов",
+        DocumentType.ACT.value: "Акт сформирован",
+    }.get(doc_type or "", "Статус заказа обновлён")
+    notify_client(
+        db,
+        order,
+        header,
+        document_type=doc_type if create_documents else None,
+    )
     db.commit()
     db.refresh(order)
     return order

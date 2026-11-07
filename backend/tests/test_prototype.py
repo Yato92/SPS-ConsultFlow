@@ -122,6 +122,64 @@ def test_staff_prototype_sends_kp_for_vk_order(client, bot_headers):
         and item.get("recipient") == str(telegram_id)
     ]
     assert client_notifications, "Клиенту должно уйти уведомление о новом статусе"
+    assert any(
+        item.get("channel") == "telegram:proposal" for item in client_notifications
+    )
+
+
+def test_staff_prototype_forms_act_and_notifies_client(client, bot_headers):
+    """После формирования акта клиенту уходит уведомление с типом act."""
+    telegram_id = 555000555
+    client.post(
+        "/api/bot/users",
+        headers=bot_headers,
+        json={"telegram_id": telegram_id, "full_name": "ВК Клиент Акта"},
+    )
+    created = client.post(
+        "/api/bot/orders",
+        headers=bot_headers,
+        json={
+            "telegram_id": telegram_id,
+            "practice": "it",
+            "title": "VK-заявка для акта",
+            "description": "Проверка акта в VK",
+            "hours": 10,
+            "complexity": "basic",
+        },
+    )
+    assert created.status_code == 201, created.text
+    order_id = created.json()["id"]
+
+    assert (
+        client.post(
+            f"/api/prototype/orders/{order_id}/proposal",
+            json={
+                "solution": "Внедрим решение и обучим сотрудников",
+                "cost": 70000,
+                "days": 14,
+                "sla": "Ответ в течение 1 рабочего дня",
+                "consultant": "Анна Смирнова",
+            },
+        ).status_code
+        == 200
+    )
+    assert client.post(f"/api/prototype/orders/{order_id}/sign").status_code == 200
+    assert client.post(f"/api/prototype/orders/{order_id}/contract").status_code == 200
+    assert client.post(f"/api/prototype/orders/{order_id}/start").status_code == 200
+    act = client.post(f"/api/prototype/orders/{order_id}/act")
+    assert act.status_code == 200, act.text
+    assert act.json()["act"] is True
+
+    notifications = client.get("/api/bot/notifications", headers=bot_headers).json()
+    act_notifications = [
+        item
+        for item in notifications
+        if item.get("order_id") == order_id
+        and item.get("recipient") == str(telegram_id)
+        and item.get("channel") == "telegram:act"
+    ]
+    assert act_notifications, "Клиенту должен уйти акт в VK"
+    assert "Акт" in act_notifications[0]["text"]
 
 
 def test_full_prototype_lifecycle(client):

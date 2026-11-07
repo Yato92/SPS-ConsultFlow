@@ -475,6 +475,7 @@ class BotStatsOut(BaseModel):
 class NotificationOut(ORMModel):
     id: int
     order_id: int | None = None
+    channel: str = "telegram"
     recipient: str
     text: str
     created_at: datetime

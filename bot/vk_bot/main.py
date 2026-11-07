@@ -537,6 +537,24 @@ def documents_text(card: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
+def document_type_from_channel(channel: Any) -> str | None:
+    """Из channel вида telegram:act достаёт тип документа для автоотправки."""
+    value = str(channel or "")
+    if ":" not in value:
+        return None
+    kind = value.partition(":")[2].strip()
+    return kind or None
+
+
+def document_message(card: dict[str, Any], doc_type: str) -> str | None:
+    documents = [
+        doc for doc in card.get("documents") or [] if doc.get("type") == doc_type
+    ]
+    if not documents:
+        return None
+    return documents_text({"number": card.get("number"), "documents": documents})
+
+
 async def show_order_card(
     vk: VKAPI,
     api: ConsultFlowAPI,
@@ -1181,6 +1199,7 @@ async def notification_worker(vk: VKAPI, api: ConsultFlowAPI, interval: float = 
                     # Положительные ID принадлежат Telegram; не трогаем их.
                     continue
                 keyboard = None
+                card: dict[str, Any] | None = None
                 order_id = item.get("order_id")
                 if order_id:
                     try:
@@ -1201,6 +1220,11 @@ async def notification_worker(vk: VKAPI, api: ConsultFlowAPI, interval: float = 
                         _clean(item.get("text", "")),
                         keyboard=keyboard,
                     )
+                    doc_type = document_type_from_channel(item.get("channel"))
+                    if card and doc_type:
+                        doc_text = document_message(card, doc_type)
+                        if doc_text:
+                            await send(vk, abs(recipient), doc_text)
                     sent.append(int(item["id"]))
                 except (VKError, KeyError, TypeError) as exc:
                     logger.warning("VK notification %s failed: %s", item.get("id"), exc)
